@@ -1,0 +1,90 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="brick_catcher">
+    
+    <link name="wheel">
+        <visual name="wheel">
+            <origin xyz="0.0 0.0 0.0" rpy="1.570796 0.0 0.0"/>
+            <geometry>
+                <cylinder radius="0.5" length="0.5"/>
+            </geometry>
+            <material name="wheel">
+                <color rgba="1.0 1.0 1.0 1.0"/>
+            </material>
+        </visual>
+    </link>
+
+    <link name="stem">
+        <visual name="stem">
+            <origin xyz="0.0 0.0 1.5"/>
+            <geometry>
+                <cylinder radius="0.5" length="1.0"/>
+            </geometry>
+            <material name="stem">
+                <color rgba="0.0 0.0 0.0 1.0"/>
+            </material>
+        </visual>
+    </link>
+    
+    <link name="base_link">
+        <visual>
+            <origin xyz="0.0 0.0 2.5"/>
+            <geometry>
+                <box size="1.0 1.0 1.0"/>
+            </geometry>
+            <material name="Cyan">
+                <color rgba="0.0 1.0 1.0 1.0"/>
+            </material>
+        </visual>
+    </link>
+
+    <link name="platform_fixed">
+        <visual name="fixed_cyl">
+            <origin xyz="0.0 0.0 4.0"/>
+            <geometry>
+                <cylinder radius="1.5" length="2.0"/>
+            </geometry>
+            <material name="red">
+                <color rgba="1.0 0.0 0.0 1.0"/>
+            </material>
+        </visual>
+    </link>
+
+    <link name="platform_tilt">
+        <visual name="tilt_cyl">
+            <origin xyz="0.0 0.0 1.0"/>
+            <geometry>
+                <cylinder radius="1.0" length="2.0"/>
+            </geometry>
+            <material name="red_tilt">
+                <color rgba="0.5 0.0 0.0 1.0"/>
+            </material>
+        </visual>
+    </link>
+
+    <joint name="wheel_stem" type="continuous">
+        <origin xyz="0.0 0.0 0.5" rpy="0.0 0.0 0.0"/>
+        <parent link="stem"/>
+        <child link="wheel"/>
+        <axis xyz="0.0 1.0 0.0"/>
+    </joint>
+
+    <joint name="stem_base" type="continuous">
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+        <parent link="stem"/>
+        <child link="base_link"/>
+        <axis xyz="0.0 0.0 1.0"/>
+    </joint>
+
+    <joint name="base_platform_fixed" type="fixed">
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+        <parent link="base_link"/>
+        <child link="platform_fixed"/>
+    </joint>
+
+    <joint name="platform_x" type="continuous">
+        <origin xyz="0.0 0.0 5.0" rpy="0.0 0.0 0.0"/>
+        <parent link="platform_fixed"/>
+        <child link="platform_tilt"/>
+        <axis xyz="1.0 0.0 0.0"/>
+    </joint>
+</robot>

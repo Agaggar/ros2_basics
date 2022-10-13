@@ -25,7 +25,8 @@ setup(
     license='MIT',
     tests_require=['pytest'],
     entry_points={
-        'console_scripts': ['turtle_robot = turtle_brick.turtle_robot:main'
+        'console_scripts': ['turtle_robot = turtle_brick.turtle_robot:main', 
+        'arena = turtle_brick.arena:main'
         ],
     },
 )

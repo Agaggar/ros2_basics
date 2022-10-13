@@ -1,11 +1,15 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://wiki.ros.org/xacro" name="brick_catcher">
-    
+    <xacro:property name="wheel_radius" value="0.5" />
+    <xacro:property name="max_velocity" value="0.22" />
+    <xacro:property name="cyl_length" value="${wheel_radius*2}" />
+    <xacro:property name="platform_height" value ="6.0" />
+    <!-- assert that platform height must at minimum be 7*wheel_radius -->
     <link name="wheel">
         <visual name="wheel">
             <origin xyz="0.0 0.0 0.0" rpy="${pi/2} 0.0 0.0"/>
             <geometry>
-                <cylinder radius="0.5" length="0.5"/>
+                <cylinder radius="${wheel_radius}" length="${wheel_radius/2}"/>
             </geometry>
             <material name="wheel">
                 <color rgba="1.0 1.0 1.0 1.0"/>
@@ -15,9 +19,9 @@
 
     <link name="stem">
         <visual name="stem">
-            <origin xyz="0.0 0.0 1.5"/>
+            <origin xyz="0.0 0.0 ${2*wheel_radius + 0.5*cyl_length}"/>
             <geometry>
-                <cylinder radius="0.5" length="1.0"/>
+                <cylinder radius="${wheel_radius}" length="${cyl_length}"/>
             </geometry>
             <material name="stem">
                 <color rgba="0.0 0.0 0.0 1.0"/>
@@ -27,9 +31,9 @@
     
     <link name="base_link">
         <visual>
-            <origin xyz="0.0 0.0 2.5"/>
+            <origin xyz="0.0 0.0 ${2*wheel_radius + 1.5*cyl_length}"/>
             <geometry>
-                <box size="1.0 1.0 1.0"/>
+                <box size="${cyl_length} ${cyl_length} ${cyl_length}"/>
             </geometry>
             <material name="Cyan">
                 <color rgba="0.0 1.0 1.0 1.0"/>
@@ -39,9 +43,9 @@
 
     <link name="platform_fixed">
         <visual name="fixed_cyl">
-            <origin xyz="0.0 0.0 4.0"/>
+            <origin xyz="0.0 0.0 ${2*wheel_radius + 2*cyl_length + 0.5*(platform_height-wheel_radius-2*wheel_radius-2*cyl_length)}"/>
             <geometry>
-                <cylinder radius="1.5" length="2.0"/>
+                <cylinder radius="${wheel_radius*3}" length="${platform_height-wheel_radius-2*wheel_radius-2*cyl_length}"/>
             </geometry>
             <material name="red">
                 <color rgba="1.0 0.0 0.0 1.0"/>
@@ -51,22 +55,22 @@
 
     <link name="platform_tilt">
         <visual name="tilt_cyl">
-            <origin xyz="0.0 0.0 1.0"/>
+            <origin xyz="0.0 0.0 ${wheel_radius/2}"/>
             <geometry>
-                <cylinder radius="1.0" length="2.0"/>
+                <cylinder radius="${5*wheel_radius}" length="${wheel_radius}"/>
             </geometry>
             <material name="red_tilt">
-                <color rgba="0.5 0.0 0.0 1.0"/>
+                <color rgba="0.1 0.0 0.0 1.0"/>
             </material>
         </visual>
     </link>
 
     <joint name="wheel_stem" type="continuous">
-        <origin xyz="0.0 0.0 0.5" rpy="0.0 0.0 0.0"/>
+        <origin xyz="0.0 0.0 ${wheel_radius}" rpy="0.0 0.0 0.0"/>
         <parent link="stem"/>
         <child link="wheel"/>
         <axis xyz="0.0 1.0 0.0"/>
-        <limit lower="0.0" upper="0.0" effort="0.0" velocity="${0.22/0.5}"/>
+        <limit lower="0.0" upper="0.0" effort="0.0" velocity="${max_velocity/wheel_radius}"/>
     </joint>
 
     <joint name="stem_base" type="continuous">
@@ -83,7 +87,7 @@
     </joint>
 
     <joint name="platform_x" type="continuous">
-        <origin xyz="0.0 0.0 5.0" rpy="0.0 0.0 0.0"/>
+        <origin xyz="0.0 0.0 ${platform_height-wheel_radius}" rpy="0.0 0.0 0.0"/>
         <parent link="platform_fixed"/>
         <child link="platform_tilt"/>
         <axis xyz="1.0 0.0 0.0"/>

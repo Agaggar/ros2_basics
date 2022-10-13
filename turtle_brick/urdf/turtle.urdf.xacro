@@ -75,8 +75,8 @@
 
     <joint name="stem_base" type="continuous">
         <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
-        <parent link="stem"/>
-        <child link="base_link"/>
+        <parent link="base_link"/>
+        <child link="stem"/>
         <axis xyz="0.0 0.0 1.0"/>
     </joint>
 

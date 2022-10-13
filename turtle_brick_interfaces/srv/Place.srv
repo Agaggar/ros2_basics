@@ -1,4 +1,4 @@
-float64[] brick_x
-float64[] brick_y
-float64[] brick_z
+float64 brick_x
+float64 brick_y
+float64 brick_z
 ---

@@ -29,7 +29,8 @@ class TurtleRobot(Node):
         # Static broadcasters publish on /tf_static. We will only need to publish this once
         self.static_broadcaster = StaticTransformBroadcaster(self)
         self.broadcaster = TransformBroadcaster(self)
-        self.pos_or_subscriber = self.create_subscription(Pose, "/turtle1/pose", self.pos_or_callback, 10)
+        self.pos_or_subscriber = self.create_subscription(Pose, "turtlesim/turtle1/pose", self.pos_or_callback, 10)
+        self.vel_publisher = self.create_publisher(Twist, "turtlesim/turtle1/cmd_vel", 10)
         self.current = None
         self.spawn_pos = None
         self.odom_bool = False

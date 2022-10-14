@@ -1,0 +1,7 @@
+/robot_publisher:
+  ros__parameters:
+    # wheel_radius: 0.5
+    # platform_height: 6.0
+    # assert that platform_height is >=7*wheel_radius
+    # max_velocity: 0.22
+    # gravity: 9.8 m/s^2

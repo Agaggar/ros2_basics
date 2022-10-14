@@ -22,6 +22,14 @@ def generate_launch_description():
 
     robot_description = ParameterValue(Command(['xacro ', LaunchConfiguration('model')]),
                                        value_type=str)
+    
+    wheel_radius = LaunchConfiguration('wheel_radius')
+    platform_height = LaunchConfiguration('platform_height')
+    max_velocity = LaunchConfiguration('max_velocity')
+    gravity = LaunchConfiguration('gravity')
+    # assert that platform_height is >=7*wheel_radius
+    
+    # gravity_arg = DeclareLaunchArgument('gravity', default_value='9.8')
 
     arena_node = Node(
         package='turtle_brick',
@@ -31,10 +39,12 @@ def generate_launch_description():
     robot_state_publisher_node = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
+        name="robot_publisher",
         parameters=[{'robot_description': robot_description}]
     )
 
     # Depending on gui parameter, either launch joint_state_publisher or joint_state_publisher_gui
+    # parameter should be called use_jsp: gui, jsp, or none
     joint_state_publisher_node = Node(
         package='joint_state_publisher',
         executable='joint_state_publisher',
@@ -54,6 +64,11 @@ def generate_launch_description():
         output='screen',
         arguments=['-d', LaunchConfiguration('rvizconfig')],
     )
+    '''
+    <node pkg="turtlesim" exec="turtlesim_node" name="roving_turtle">
+        <param from="$(find-pkg-share turtle_control)/colors.yaml" />
+   </node>
+    '''
 
     return LaunchDescription([
         gui_arg,

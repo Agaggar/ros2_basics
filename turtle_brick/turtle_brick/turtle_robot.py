@@ -1,4 +1,4 @@
-from turtle import Turtle, reset
+from turtle import Turtle, position, reset
 import rclpy, math
 from rclpy.node import Node
 from rcl_interfaces.msg import ParameterDescriptor
@@ -29,26 +29,41 @@ class TurtleRobot(Node):
         # Static broadcasters publish on /tf_static. We will only need to publish this once
         self.static_broadcaster = StaticTransformBroadcaster(self)
         self.broadcaster = TransformBroadcaster(self)
-
-        world_base_tf = TransformStamped()
-        world_base_tf.header.stamp = self.get_clock().now().to_msg()
-        world_base_tf.header.frame_id = "world"
-        world_base_tf.child_frame_id = "odom"
-        world_base_tf.transform.translation.x = 5.0
-        world_base_tf.transform.translation.y = 5.0
-        self.static_broadcaster.sendTransform(world_base_tf)
+        self.pos_or_subscriber = self.create_subscription(Pose, "/turtle1/pose", self.pos_or_callback, 10)
+        self.current = None
+        self.spawn_pos = None
+        self.odom_bool = False
 
         # Create a timer to do the rest of the transforms
         self.tmr = self.create_timer(1, self.timer_callback)
 
     def timer_callback(self):
+        if self.odom_bool == True:
+            world_base_tf = TransformStamped()
+            world_base_tf.header.stamp = self.get_clock().now().to_msg()
+            world_base_tf.header.frame_id = "world"
+            world_base_tf.child_frame_id = "odom"
+            world_base_tf.transform.translation.x = self.spawn_pos.x
+            world_base_tf.transform.translation.y = self.spawn_pos.y
+            self.static_broadcaster.sendTransform(world_base_tf)
+
         odom_base_link = TransformStamped()
         odom_base_link.header.stamp = self.get_clock().now().to_msg()
         odom_base_link.header.frame_id = "odom"
         odom_base_link.child_frame_id = "base_link"
-        # odom_base_link.transform.translation.x = float(self.dx)
+        odom_base_link.transform.translation.z = 4.0
         # odom_base_link.transform.rotation = angle_axis_to_quaternion(radians, [0, 0, -1.0])
         self.broadcaster.sendTransform(odom_base_link)
+    
+    def pos_or_callback(self, msg):
+        """Called by self.pos_or_subscriber
+        Subscribes to pose, and updates current with pose
+        """
+        if (self.spawn_pos == None):
+            self.spawn_pos = msg
+            self.odom_bool = True
+        self.current = msg
+        self.get_logger().debug(f'I heard: {msg}')
 
 
 def main(args=None):

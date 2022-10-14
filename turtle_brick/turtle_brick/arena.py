@@ -1,4 +1,5 @@
 from email.header import Header
+import re
 from turtle import Turtle, reset
 import rclpy, math
 from rclpy.node import Node
@@ -34,26 +35,18 @@ class Arena(Node):
         self.state = State.RUNNING
         self.broadcaster = TransformBroadcaster(self)
 
-    def create_wall(self):
         self.marker_walls_border = Marker()
-        self.marker_walls_border.header.frame_id = "platform_fixed"
+        self.marker_walls_border.header.frame_id = "world"
         self.marker_walls_border.header.stamp = self.get_clock().now().to_msg()
         self.marker_walls_border.type = 6
         self.marker_walls_border.id = 0
         self.marker_walls_border.action = 0
-        self.marker_walls_border.scale.x = 1.0
-        self.marker_walls_border.scale.y = 1.0
+        self.marker_walls_border.scale.x = 0.1
+        self.marker_walls_border.scale.y = 0.1
         self.marker_walls_border.scale.z = 1.0
         self.marker_walls_border.color.b = 1.0
         self.marker_walls_border.color.a = 1.0
-        # self.marker_walls_border.lifetime = Duration(0,0)
-        self.marker_walls_border.pose.position.x = 0.0
-        self.marker_walls_border.pose.position.y = 0.0
-        self.marker_walls_border.pose.position.z = 0.0
-        self.marker_walls_border.pose.orientation.x = 0.0
-        self.marker_walls_border.pose.orientation.y = 0.0
-        self.marker_walls_border.pose.orientation.z = 0.0
-        self.marker_walls_border.pose.orientation.w = 0.0
+
         self.points = []
         self.points.append(Point(x=0.0, y=0.0, z=0.0))
         for x in range(1,11):
@@ -66,41 +59,39 @@ class Arena(Node):
         self.marker_walls_border.points = self.points
 
         self.marker_brick = Marker(type=1)
-        self.marker_brick.header.frame_id = "platform_fixed"
+        self.marker_brick.header.frame_id = "world"
         self.marker_brick.header.stamp = self.get_clock().now().to_msg()
         self.marker_brick.color.r = 132.0/255.0
         self.marker_brick.color.g = 31.0/255.0
         self.marker_brick.color.b = 39.0/255.0
-        self.marker_brick.color.a = 0.0
         self.marker_brick.action = 0
         self.marker_brick.scale.x = 1.0
         self.marker_brick.scale.y = 2.0
         self.marker_brick.scale.z = 1.0
-        
-        return self.marker_walls_border
     
     def timer_callback(self):
         if (self.count%25) == 0:
-            self.marker_pub.publish(self.create_wall())
-        self.world_brick = TransformStamped()
-        self.world_brick.header.stamp = self.get_clock().now().to_msg()
-        self.world_brick.header.frame_id = "world"
-        self.world_brick.child_frame_id = "brick"
-        # world_brick.transform.translation.x = float(self.dx)
-        # world_brick.transform.rotation = angle_axis_to_quaternion(radians, [0, 0, -1.0])
+            self.marker_pub.publish(self.marker_walls_border)
         
-        self.world_brick.transform.translation.x = self.marker_brick.pose.position.x
-        self.world_brick.transform.translation.y = self.marker_brick.pose.position.y
-        self.world_brick.transform.translation.z = self.marker_brick.pose.position.z
-        self.broadcaster.sendTransform(self.world_brick)
+        self.odom_brick = TransformStamped()
+        self.odom_brick.header.stamp = self.get_clock().now().to_msg()
+        self.odom_brick.header.frame_id = "odom"
+        self.odom_brick.child_frame_id = "brick"
+        # odom_brick.transform.translation.x = float(self.dx)
+        # odom_brick.transform.rotation = angle_axis_to_quaternion(radians, [0, 0, -1.0])
+        
+        self.odom_brick.transform.translation.x = self.marker_brick.pose.position.x
+        self.odom_brick.transform.translation.y = self.marker_brick.pose.position.y
+        self.odom_brick.transform.translation.z = self.marker_brick.pose.position.z
+        self.broadcaster.sendTransform(self.odom_brick)
         self.g = 9.81
         if self.state == State.DROP_BRICK:
             self.brick_pub.publish(self.marker_brick)
+            print(self.marker_brick.pose.position)
         self.count +=1
 
     def place_callback(self, request, response):
-        self.state == State.DROP_BRICK
-        
+        self.state = State.DROP_BRICK
         self.marker_brick.pose.position.x = request.brick_x
         self.marker_brick.pose.position.y = request.brick_y
         self.marker_brick.pose.position.z = request.brick_z

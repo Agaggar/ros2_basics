@@ -33,7 +33,8 @@ def generate_launch_description():
 
     arena_node = Node(
         package='turtle_brick',
-        executable='arena'
+        executable='arena',
+        output='screen',
     )
     
     robot_state_publisher_node = Node(
@@ -61,7 +62,7 @@ def generate_launch_description():
         package='rviz2',
         executable='rviz2',
         name='rviz2',
-        output='screen',
+        # output='screen',
         arguments=['-d', LaunchConfiguration('rvizconfig')],
     )
     '''

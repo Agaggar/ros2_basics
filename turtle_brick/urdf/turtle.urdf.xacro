@@ -4,6 +4,8 @@
     <xacro:property name="max_velocity" value="0.22" />
     <xacro:property name="cyl_length" value="${wheel_radius*2}" />
     <xacro:property name="platform_height" value ="6.0" />
+    <xacro:property name="base_x" value ="0.0" />
+    <xacro:property name="base_y" value ="0.0" />
     <!-- assert that platform height must at minimum be 7*wheel_radius -->
     <link name="wheel">
         <visual name="wheel">
@@ -15,6 +17,12 @@
                 <color rgba="1.0 1.0 1.0 1.0"/>
             </material>
         </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="${pi/2} 0.0 0.0"/>
+            <geometry>
+                <cylinder radius="${wheel_radius}" length="${wheel_radius/2}"/>
+            </geometry>
+        </collision>
     </link>
 
     <link name="stem">
@@ -27,6 +35,12 @@
                 <color rgba="0.0 0.0 0.0 1.0"/>
             </material>
         </visual>
+        <collision>
+            <origin xyz="0.0 0.0 ${2*wheel_radius + 0.5*cyl_length}"/>
+            <geometry>
+                <cylinder radius="${wheel_radius}" length="${cyl_length}"/>
+            </geometry>
+        </collision>
     </link>
     
     <link name="base_link">
@@ -39,6 +53,11 @@
                 <color rgba="0.0 1.0 1.0 1.0"/>
             </material>
         </visual>
+        <collision>
+            <geometry>
+                <box size="${cyl_length} ${cyl_length} ${cyl_length}"/>
+            </geometry>
+        </collision>
     </link>
 
     <link name="platform_fixed">
@@ -51,6 +70,12 @@
                 <color rgba="1.0 0.0 0.0 1.0"/>
             </material>
         </visual>
+        <collision>
+            <origin xyz="0.0 0.0 ${2*wheel_radius + 2*cyl_length + 0.5*(platform_height-wheel_radius-2*wheel_radius-2*cyl_length)}"/>
+            <geometry>
+                <cylinder radius="${wheel_radius*3}" length="${platform_height-wheel_radius-2*wheel_radius-2*cyl_length}"/>
+            </geometry>
+        </collision>
     </link>
 
     <link name="platform_tilt">
@@ -63,6 +88,12 @@
                 <color rgba="0.1 0.0 0.0 1.0"/>
             </material>
         </visual>
+        <collision>
+            <origin xyz="0.0 0.0 ${wheel_radius/2}"/>
+            <geometry>
+                <cylinder radius="${5*wheel_radius}" length="${wheel_radius}"/>
+            </geometry>
+        </collision>
     </link>
 
     <joint name="wheel_stem" type="continuous">

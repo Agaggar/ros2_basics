@@ -37,6 +37,7 @@ def generate_launch_description():
         Node(
             package='turtle_brick',
             executable='turtle_robot',
-            name='turtle_robot_node'
+            name='turtle_robot_node',
+            output='screen',
         )
     ])

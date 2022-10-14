@@ -31,7 +31,7 @@ class TurtleRobot(Node):
         self.broadcaster = TransformBroadcaster(self)
         self.pos_or_subscriber = self.create_subscription(Pose, "turtlesim/turtle1/pose", self.pos_or_callback, 10)
         self.vel_publisher = self.create_publisher(Twist, "turtlesim/turtle1/cmd_vel", 10)
-        self.current = None
+        self.current_pos = Pose(x=0.0,y=0.0,theta=0.0,linear_velocity=0.0,angular_velocity=0.0)
         self.spawn_pos = None
         self.odom_bool = False
 
@@ -46,15 +46,16 @@ class TurtleRobot(Node):
             world_base_tf.child_frame_id = "odom"
             world_base_tf.transform.translation.x = self.spawn_pos.x
             world_base_tf.transform.translation.y = self.spawn_pos.y
+            world_base_tf.transform.translation.z = 0.0
             self.static_broadcaster.sendTransform(world_base_tf)
-
-        odom_base_link = TransformStamped()
-        odom_base_link.header.stamp = self.get_clock().now().to_msg()
-        odom_base_link.header.frame_id = "odom"
-        odom_base_link.child_frame_id = "base_link"
-        odom_base_link.transform.translation.z = 4.0
-        # odom_base_link.transform.rotation = angle_axis_to_quaternion(radians, [0, 0, -1.0])
-        self.broadcaster.sendTransform(odom_base_link)
+        
+        self.odom_base = TransformStamped()
+        self.odom_base.header.frame_id = "odom"
+        self.odom_base.child_frame_id = "base_link"
+        self.odom_base.header.stamp = self.get_clock().now().to_msg()
+        self.odom_base.transform.translation.x = 0.0 # offset by half of wheel_length
+        self.odom_base.transform.translation.y = 0.0
+        self.broadcaster.sendTransform(self.odom_base)
     
     def pos_or_callback(self, msg):
         """Called by self.pos_or_subscriber
@@ -63,8 +64,7 @@ class TurtleRobot(Node):
         if (self.spawn_pos == None):
             self.spawn_pos = msg
             self.odom_bool = True
-        self.current = msg
-        self.get_logger().debug(f'I heard: {msg}')
+        self.current_pos = msg
 
 
 def main(args=None):

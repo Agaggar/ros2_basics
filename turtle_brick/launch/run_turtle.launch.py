@@ -22,10 +22,10 @@ def generate_launch_description():
                 ])
             ]),
             launch_arguments={
-                'wheel_radius': 0.5,
-                'platform_height': 6.0,
-                'max_velocity': 0.22,
-                'gravity': 9.8
+                'wheel_radius': '0.5',
+                'platform_height': '6.0',
+                'max_velocity': '0.22',
+                'gravity': '9.8'
             }.items()
         ),
         Node(

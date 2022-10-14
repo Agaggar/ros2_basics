@@ -28,7 +28,7 @@ def generate_launch_description():
     max_velocity = LaunchConfiguration('max_velocity')
     gravity = LaunchConfiguration('gravity')
     # assert that platform_height is >=7*wheel_radius
-    
+
     # gravity_arg = DeclareLaunchArgument('gravity', default_value='9.8')
 
     arena_node = Node(

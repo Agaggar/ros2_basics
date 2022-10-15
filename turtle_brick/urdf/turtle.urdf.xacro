@@ -1,9 +1,13 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://wiki.ros.org/xacro" name="brick_catcher">
-    <xacro:property name="wheel_radius" value="0.5" />
-    <xacro:property name="max_velocity" value="0.22" />
+    <xacro:property name="yaml" value="$(find turtle_brick)/turtle.yaml" />
+    <xacro:property name="props" value="${load_yaml(yaml)}" />
+    <xacro:property name="ros_param" value="${props['/**']}" />
+    <xacro:property name="parameters" value="${ros_param['ros__parameters']}" />
+    <xacro:property name="wheel_radius" value="${parameters['wheel_radius']}" />
+    <xacro:property name="max_velocity" value="${parameters['max_velocity']}" />
     <xacro:property name="cyl_length" value="${wheel_radius*2}" />
-    <xacro:property name="platform_height" value ="6.0" />
+    <xacro:property name="platform_height" value ="${parameters['platform_height']}" />
     <xacro:property name="base_x" value ="0.0" />
     <xacro:property name="base_y" value ="0.0" />
     <!-- assert that platform height must at minimum be 7*wheel_radius -->

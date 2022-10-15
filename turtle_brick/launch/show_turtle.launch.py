@@ -24,10 +24,6 @@ def generate_launch_description():
     robot_description = ParameterValue(Command(['xacro ', LaunchConfiguration('model')]),
                                        value_type=str)
     
-    wheel_radius = LaunchConfiguration('wheel_radius')
-    platform_height = LaunchConfiguration('platform_height')
-    max_velocity = LaunchConfiguration('max_velocity')
-    gravity = LaunchConfiguration('gravity')
     robot_configs = turtle_brick_pkg_path / 'turtle.yaml'
     # assert that platform_height is >=7*wheel_radius
 
@@ -38,7 +34,7 @@ def generate_launch_description():
         executable='arena',
         output='screen',
         emulate_tty=True,
-        # parameters=[robot_configs]
+        parameters=[robot_configs]
     )
     
     robot_state_publisher_node = Node(

@@ -91,19 +91,15 @@ class Arena(Node):
     def timer_callback(self):
         if (self.count%25) == 0:
             self.marker_pub.publish(self.marker_walls_border)
-        
         self.odom_brick = TransformStamped()
         self.odom_brick.header.stamp = self.get_clock().now().to_msg()
         self.odom_brick.header.frame_id = "world"
         self.odom_brick.child_frame_id = "brick"
-        # odom_brick.transform.translation.x = float(self.dx)
-        # odom_brick.transform.rotation = angle_axis_to_quaternion(radians, [0, 0, -1.0])
-        
         self.odom_brick.transform.translation.x = self.marker_brick.pose.position.x
         self.odom_brick.transform.translation.y = self.marker_brick.pose.position.y
         self.odom_brick.transform.translation.z = self.marker_brick.pose.position.z
         self.broadcaster.sendTransform(self.odom_brick)
-        self.g = 9.81
+        
         if self.state != State.RUNNING:
             self.brick_pub.publish(self.marker_brick)
         if self.state == State.DROP_BRICK:

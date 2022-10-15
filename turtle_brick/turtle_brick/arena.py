@@ -1,5 +1,5 @@
 from email.header import Header
-import re
+# import re
 from turtle import Turtle, reset
 import rclpy, math
 from rclpy.node import Node
@@ -9,6 +9,7 @@ from enum import Enum, auto
 from turtle_brick_interfaces.srv import Place
 from turtlesim.srv import TeleportAbsolute, SetPen
 from turtlesim.msg import Pose
+from geometry_msgs.msg import Point
 import time
 from math import pi
 from geometry_msgs.msg import Twist, Vector3, TransformStamped, Point, Quaternion
@@ -42,7 +43,8 @@ class Arena(Node):
         self.brick_z_initial = 0.0
         self.declare_parameter("gravity", 9.8, ParameterDescriptor(description="Accel due to gravity, 9.8 by default."))
         self.declare_parameter("wheel_radius", 0.5, ParameterDescriptor(description="Wheel radius"))
-        self.declare_parameter("platform_height", 0.6, ParameterDescriptor(description="height of platform. MUST BE >=3.5*WHEEL_RADIUS"))
+        self.declare_parameter("platform_height", 0.6, ParameterDescriptor(
+            description="height of platform. MUST BE >=3.5*WHEEL_RADIUS"))
         self.declare_parameter("max_velocity", 0.22, ParameterDescriptor(description="max linear velocity"))
         self.g = self.get_parameter("gravity").get_parameter_value().double_value
         self.wheel_radius = self.get_parameter("wheel_radius").get_parameter_value().double_value
@@ -50,7 +52,7 @@ class Arena(Node):
         self.max_velocity = self.get_parameter("max_velocity").get_parameter_value().double_value
         # assert all values greater than 0
 
-        self.goal_pub = self.create_publisher(Pose, "goal_message",1)
+        self.goal_pub = self.create_publisher(Point, "goal_message",1)
         
         self.marker_walls_border = Marker()
         self.marker_walls_border.header.frame_id = "world"
@@ -122,7 +124,10 @@ class Arena(Node):
         return response
     
     def drop_callback(self,request,response):
-        self.goal_pub.publish(Pose(x=self.marker_brick.pose.position.x, y=self.marker_brick.pose.position.y, theta=0.0,linear_velocity=0.0,angular_velocity=0.0))
+        self.goal_pub.publish(
+            Point(x=self.marker_brick.pose.position.x, 
+            y=self.marker_brick.pose.position.y, 
+            z=self.marker_brick.pose.position.z))
         if self.state == State.PLACE_BRICK:
             self.state = State.DROP_BRICK
         else:

@@ -31,7 +31,7 @@ class Arena(Node):
         self.timer = self.create_timer(1/self.frequency, self.timer_callback)
         self.marker_pub = self.create_publisher(Marker, "/wall_marker", 10)
         self.brick_pub = self.create_publisher(Marker, "/brick_marker", 10)
-        # self.marker_pub = self.create_publisher(MarkerArray, "/wall_marker", 10)
+        
         self.brick_place = self.create_service(Place, "brick_place", self.place_callback)
         # self.brick_place_client = self.create_client(Place, "brick_place")
         self.brick_drop = self.create_service(Empty, "brick_drop", self.drop_callback)
@@ -50,6 +50,8 @@ class Arena(Node):
         self.max_velocity = self.get_parameter("max_velocity").get_parameter_value().double_value
         # assert all values greater than 0
 
+        self.goal_pub = self.create_publisher(Pose, "goal_message",1)
+        
         self.marker_walls_border = Marker()
         self.marker_walls_border.header.frame_id = "world"
         self.marker_walls_border.header.stamp = self.get_clock().now().to_msg()
@@ -120,6 +122,7 @@ class Arena(Node):
         return response
     
     def drop_callback(self,request,response):
+        self.goal_pub.publish(Pose(x=self.marker_brick.pose.position.x, y=self.marker_brick.pose.position.y, theta=0.0,linear_velocity=0.0,angular_velocity=0.0))
         if self.state == State.PLACE_BRICK:
             self.state = State.DROP_BRICK
         else:

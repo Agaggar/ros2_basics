@@ -63,8 +63,8 @@ class Catcher(Node):
             self.text_reachable.scale.z = self.wheel_radius*2.5
             self.text_reachable.id = 10
             self.text_reachable.pose._position.z = self.wheel_radius
-            self.text_reachable.string = "Unreachable"
-            self.text_reachable.lifetime = Duration(sec=3.0,nanosec=0.0)
+            self.text_reachable.text = "Unreachable"
+            self.text_reachable.lifetime = Duration(sec=3,nanosec=0)
             self.text_reachable.color.a = 1.0
         return
     

@@ -20,20 +20,35 @@ from tf2_ros import TransformBroadcaster
 
 class State(Enum):
     RUNNING = auto()
+    PLACE_BRICK = auto()
     DROP_BRICK = auto()
 
 class Arena(Node):
     def __init__(self):
         super().__init__('arena')
         self.count = 0
-        self.timer = self.create_timer(1/250.0, self.timer_callback)
+        self.frequency = 250.0
+        self.timer = self.create_timer(1/self.frequency, self.timer_callback)
         self.marker_pub = self.create_publisher(Marker, "/wall_marker", 10)
         self.brick_pub = self.create_publisher(Marker, "/brick_marker", 10)
         # self.marker_pub = self.create_publisher(MarkerArray, "/wall_marker", 10)
         self.brick_place = self.create_service(Place, "brick_place", self.place_callback)
-        self.brick_place_client = self.create_client(Place, "brick_place")
+        # self.brick_place_client = self.create_client(Place, "brick_place")
+        self.brick_drop = self.create_service(Empty, "brick_drop", self.drop_callback)
+        # self.brick_place_client = self.create_client(Place, "brick_place")
         self.state = State.RUNNING
         self.broadcaster = TransformBroadcaster(self)
+        self.time = 0.0
+        self.brick_z_initial = 0.0
+        self.declare_parameter("gravity", 9.8, ParameterDescriptor(description="Accel due to gravity, 9.8 by default."))
+        self.declare_parameter("wheel_radius", 0.5, ParameterDescriptor(description="Wheel radius"))
+        self.declare_parameter("platform_height", 0.6, ParameterDescriptor(description="height of platform. MUST BE >=3.5*WHEEL_RADIUS"))
+        self.declare_parameter("max_velocity", 0.22, ParameterDescriptor(description="max linear velocity"))
+        self.g = self.get_parameter("gravity").get_parameter_value().double_value
+        self.wheel_radius = self.get_parameter("wheel_radius").get_parameter_value().double_value
+        self.platform_height = self.get_parameter("platform_height").get_parameter_value().double_value
+        self.max_velocity = self.get_parameter("max_velocity").get_parameter_value().double_value
+        # assert all values greater than 0
 
         self.marker_walls_border = Marker()
         self.marker_walls_border.header.frame_id = "world"
@@ -41,20 +56,20 @@ class Arena(Node):
         self.marker_walls_border.type = 6
         self.marker_walls_border.id = 0
         self.marker_walls_border.action = 0
-        self.marker_walls_border.scale.x = 0.1
-        self.marker_walls_border.scale.y = 0.1
-        self.marker_walls_border.scale.z = 1.0
+        self.marker_walls_border.scale.x = 1.0
+        self.marker_walls_border.scale.y = 1.0
+        self.marker_walls_border.scale.z = 2.0
         self.marker_walls_border.color.b = 1.0
         self.marker_walls_border.color.a = 1.0
 
         self.points = []
-        self.points.append(Point(x=0.0, y=0.0, z=0.0))
-        for x in range(1,11):
-            self.points.append(Point(x=float(x), y=0.0, z=0.0))
-            self.points.append(Point(x=float(x), y=10.0, z=0.0))
-        for y in range(1,11):
-            self.points.append((Point(x=0.0, y=float(y), z=0.0)))
-            self.points.append((Point(x=10.0, y=float(y), z=0.0)))
+        self.points.append(Point(x=0.0, y=0.0, z=self.marker_walls_border.scale.z/2))
+        for x in range(1,12):
+            self.points.append(Point(x=float(x), y=0.0, z=self.marker_walls_border.scale.z/2))
+            self.points.append(Point(x=float(x), y=11.0, z=self.marker_walls_border.scale.z/2.0))
+        for y in range(1,12):
+            self.points.append((Point(x=0.0, y=float(y), z=self.marker_walls_border.scale.z/2)))
+            self.points.append((Point(x=11.0, y=float(y), z=self.marker_walls_border.scale.z/2)))
 
         self.marker_walls_border.points = self.points
 
@@ -85,17 +100,30 @@ class Arena(Node):
         self.odom_brick.transform.translation.z = self.marker_brick.pose.position.z
         self.broadcaster.sendTransform(self.odom_brick)
         self.g = 9.81
-        if self.state == State.DROP_BRICK:
+        if self.state != State.RUNNING:
             self.brick_pub.publish(self.marker_brick)
-            print(self.marker_brick.pose.position)
+        if self.state == State.DROP_BRICK:
+            self.time = self.time + 1/self.frequency
+            self.marker_brick.pose.position.z = self.brick_z_initial - 0.5*self.g*self.time**2
+            if self.marker_brick.pose.position.z <= self.marker_brick.scale.z/2.0:
+                self.state = State.RUNNING
         self.count +=1
 
     def place_callback(self, request, response):
-        self.state = State.DROP_BRICK
+        self.state = State.PLACE_BRICK
         self.marker_brick.pose.position.x = request.brick_x
         self.marker_brick.pose.position.y = request.brick_y
         self.marker_brick.pose.position.z = request.brick_z
         self.marker_brick.color.a = 1.0
+        self.time = 0.0
+        self.brick_z_initial = request.brick_z
+        return response
+    
+    def drop_callback(self,request,response):
+        if self.state == State.PLACE_BRICK:
+            self.state = State.DROP_BRICK
+        else:
+            print("Place brick first!")
         return response
 
 def main(args=None):

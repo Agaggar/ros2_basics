@@ -53,8 +53,8 @@ class TurtleRobot(Node):
         self.odom_base.header.frame_id = "odom"
         self.odom_base.child_frame_id = "base_link"
         self.odom_base.header.stamp = self.get_clock().now().to_msg()
-        self.odom_base.transform.translation.x = 0.0 # offset by half of wheel_length
-        self.odom_base.transform.translation.y = 0.0
+        self.odom_base.transform.translation.x = self.current_pos.x # offset by half of wheel_length
+        self.odom_base.transform.translation.y = self.current_pos.y
         self.broadcaster.sendTransform(self.odom_base)
     
     def pos_or_callback(self, msg):

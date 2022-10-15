@@ -1,4 +1,5 @@
 from ament_index_python.packages import get_package_share_path
+import os
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
@@ -27,6 +28,7 @@ def generate_launch_description():
     platform_height = LaunchConfiguration('platform_height')
     max_velocity = LaunchConfiguration('max_velocity')
     gravity = LaunchConfiguration('gravity')
+    robot_configs = turtle_brick_pkg_path / 'turtle.yaml'
     # assert that platform_height is >=7*wheel_radius
 
     # gravity_arg = DeclareLaunchArgument('gravity', default_value='9.8')
@@ -35,6 +37,8 @@ def generate_launch_description():
         package='turtle_brick',
         executable='arena',
         output='screen',
+        emulate_tty=True,
+        # parameters=[robot_configs]
     )
     
     robot_state_publisher_node = Node(

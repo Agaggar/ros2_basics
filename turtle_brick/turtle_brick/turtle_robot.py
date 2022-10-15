@@ -9,7 +9,7 @@ from turtlesim.srv import TeleportAbsolute, SetPen
 from turtlesim.msg import Pose
 import time
 from math import pi
-from geometry_msgs.msg import Twist, Vector3, TransformStamped
+from geometry_msgs.msg import Twist, Vector3, TransformStamped, Point
 from nav_msgs.msg import Odometry
 
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
@@ -37,12 +37,12 @@ class TurtleRobot(Node):
         self.pos_or_subscriber = self.create_subscription(Pose, "turtlesim/turtle1/pose", self.pos_or_callback, 10)
         self.vel_publisher = self.create_publisher(Twist, "turtlesim/turtle1/cmd_vel", 10)
         self.odom_pub = self.create_publisher(Odometry, "odom", 10)
-        self.goal_sub = self.create_subscription(Pose, "goal_message", self.goal_move_callback, 1)
+        self.goal_sub = self.create_subscription(Point, "goal_message", self.goal_move_callback, 1)
         self.current_pos = Pose(x=0.0,y=0.0,theta=0.0,linear_velocity=0.0,angular_velocity=0.0)
         self.spawn_pos = None
         self.odom_bool = False
         self.state = State.STOPPED
-        self.goal = Pose(x=0.0,y=0.0,theta=0.0,linear_velocity=0.0,angular_velocity=0.0)
+        self.goal = Point(x=0.0,y=0.0,z=0.0)
 
         self.declare_parameter("gravity", 9.8, ParameterDescriptor(description="Accel due to gravity, 9.8 by default."))
         self.declare_parameter("wheel_radius", 0.5, ParameterDescriptor(description="Wheel radius"))
@@ -97,7 +97,7 @@ class TurtleRobot(Node):
         goal_distance = math.sqrt((goal.y-self.current_pos.y)**2+(goal.x-self.current_pos.x)**2)
         if goal_distance <= 0:
             self.vel_publisher.publish(Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0)))
-        if abs(goal.theta - goal_theta)>0.1:
+        if abs(self.current_pos.theta - goal_theta)>0.1:
             self.vel_publisher.publish(Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 3.0)))
         curr_twist = Twist(linear = Vector3(x = self.max_velocity, y = self.max_velocity, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
 

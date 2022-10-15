@@ -7,6 +7,7 @@ from enum import Enum, auto
 from visualization_msgs.msg import Marker, MarkerArray
 from turtlesim.msg import Pose
 from geometry_msgs.msg import Point
+from builtin_interfaces.msg import Duration
 
 class State(Enum):
     CHILLING = auto()
@@ -56,6 +57,8 @@ class Catcher(Node):
             text_reachable.scale.z = self.wheel_radius*2.5
             text_reachable.id = 10
             text_reachable.pose = Pose(x=0.0,y=0.0,z=self.wheel_radius)
+            text_reachable.string = "Unreachable"
+            text_reachable.lifetime = Duration(sec=3.0,nanosec=0.0)
         return
     
     def pos_or_callback(self,msg):

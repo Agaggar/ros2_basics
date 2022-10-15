@@ -12,7 +12,7 @@ from turtlesim.msg import Pose
 from geometry_msgs.msg import Point
 import time
 from math import pi
-from geometry_msgs.msg import Twist, Vector3, TransformStamped, Point, Quaternion
+from geometry_msgs.msg import Twist, Vector3, TransformStamped, Quaternion
 from builtin_interfaces.msg import Duration
 
 from visualization_msgs.msg import Marker, MarkerArray
@@ -94,7 +94,7 @@ class Arena(Node):
         
         self.odom_brick = TransformStamped()
         self.odom_brick.header.stamp = self.get_clock().now().to_msg()
-        self.odom_brick.header.frame_id = "odom"
+        self.odom_brick.header.frame_id = "world"
         self.odom_brick.child_frame_id = "brick"
         # odom_brick.transform.translation.x = float(self.dx)
         # odom_brick.transform.rotation = angle_axis_to_quaternion(radians, [0, 0, -1.0])
@@ -109,8 +109,10 @@ class Arena(Node):
         if self.state == State.DROP_BRICK:
             self.time = self.time + 1/self.frequency
             self.marker_brick.pose.position.z = self.brick_z_initial - 0.5*self.g*self.time**2
+            # if self.marker_brick.pose.position.z == self.platform.z and (abs(self.marker_brick.pose.position.x-self.platform.x)<=self.wheel_radius) and (abs(self.marker_brick.pose.position.y-self.platform.y)<=self.wheel_radius)
             if self.marker_brick.pose.position.z <= self.marker_brick.scale.z/2.0:
                 self.state = State.RUNNING
+                self.brick_z_initial=0.0
         self.count +=1
 
     def place_callback(self, request, response):
@@ -127,7 +129,7 @@ class Arena(Node):
         self.goal_pub.publish(
             Point(x=self.marker_brick.pose.position.x, 
             y=self.marker_brick.pose.position.y, 
-            z=self.marker_brick.pose.position.z))
+            z=self.brick_z_initial))
         if self.state == State.PLACE_BRICK:
             self.state = State.DROP_BRICK
         else:

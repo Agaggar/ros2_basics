@@ -7,6 +7,7 @@ from enum import Enum, auto
 # from turtle_brick_interfaces.srv blah blah
 from turtlesim.srv import TeleportAbsolute, SetPen
 from turtlesim.msg import Pose
+from turtle_brick_interfaces.srv import Tilt
 import time
 from math import pi
 from geometry_msgs.msg import Twist, Vector3, TransformStamped, Point, PoseWithCovariance, TwistWithCovariance
@@ -35,8 +36,9 @@ class TurtleRobot(Node):
         # Static broadcasters publish on /tf_static. We will only need to publish this once
         self.static_broadcaster = StaticTransformBroadcaster(self)
         self.broadcaster = TransformBroadcaster(self)
-        self.pos_or_subscriber = self.create_subscription(Pose, "turtlesim/turtle1/pose", self.pos_or_callback, 10)
-        self.vel_publisher = self.create_publisher(Twist, "turtlesim/turtle1/cmd_vel", 10)
+        self.pos_or_subscriber = self.create_subscription(Pose, "turtle1/pose", self.pos_or_callback, 10)
+        self.tilt_subscriber = self.create_service(Tilt, "tilt", self.tilt_callback)
+        self.vel_publisher = self.create_publisher(Twist, "turtle1/cmd_vel", 10)
         self.odom_pub = self.create_publisher(Odometry, "odom", 10)
         self.goal_sub = self.create_subscription(Point, "goal_message", self.goal_move_callback, 1)
         self.current_pos = Pose(x=0.0,y=0.0,theta=0.0,linear_velocity=0.0,angular_velocity=0.0)
@@ -105,24 +107,31 @@ class TurtleRobot(Node):
     def goal_move_callback(self, msg):
         if msg != None:
             self.state = State.MOVING
+        self.goal = msg
         return
     
     def move(self, goal):
         goal_theta = math.atan2((goal.y-self.current_pos.y), (goal.x-self.current_pos.x))
-        print(goal_theta)
-        goal_distance = math.sqrt((goal.y-self.current_pos.y)**2+(goal.x-self.current_pos.x)**2)
-        if abs(self.current_pos.theta - goal_theta) >= 0:
-            if goal_theta >= 0.0:
-                self.current_twist.angular.z = 1.0
-            else:
-                self.current_twist.angular.z = -1.0
-                self.vel_publisher.publish(self.current_twist)
-        if goal_distance > 0.01:
-            self.current_twist.angular.z = 0.0
-            self.current_twist.linear = Vector3(x = self.max_velocity, y = self.max_velocity, z = 0.0)
-        if goal_distance <= 0:
+        goal_distance = math.sqrt((goal.y-self.spawn_pos.y-self.current_pos.y)**2+(goal.x-self.spawn_pos.x-self.current_pos.x)**2)
+        # if goal_theta >= 0.01:
+        #     if(self.current_pos.theta - goal_theta) >= 0.01:
+        #         self.current_twist.angular.z = 1.0
+        # if goal_theta <= -0.01:
+        #     if(self.current_pos.theta - goal_theta) <= -0.01:
+        #         self.current_twist.angular.z = -1.0
+        # if abs(self.current_pos.theta - goal_theta) < 0.01:
+        #     self.current_twist.angular.z = 0.0
+        # # self.vel_publisher.publish(self.current_twist)
+        if goal_distance > self.max_velocity/10.0:
+            # self.current_twist.angular.z = 0.0
+            self.current_twist.linear = Vector3(x = self.max_velocity*math.cos(goal_theta), y = self.max_velocity*math.sin(goal_theta), z = 0.0)
+        if goal_distance <= 0.05/self.max_velocity/10.0:
             self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
         self.vel_publisher.publish(self.current_twist)
+    
+    def tilt_callback(self,request,response):
+        # publish to joint state publisher
+        return response
 
 def main(args=None):
     rclpy.init(args=args)

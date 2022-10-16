@@ -23,6 +23,7 @@ class State(Enum):
     RUNNING = auto()
     PLACE_BRICK = auto()
     DROP_BRICK = auto()
+    BRICK_PLATFORM = auto()
 
 class Arena(Node):
     def __init__(self):
@@ -109,6 +110,9 @@ class Arena(Node):
             if self.marker_brick.pose.position.z <= self.marker_brick.scale.z/2.0:
                 self.state = State.RUNNING
                 self.brick_z_initial=0.0
+        if self.state == State.BRICK_PLATFORM:
+            self.marker_brick.header.frame_id = "platform_tilt"
+            self.brick_slide()
         self.count +=1
 
     def place_callback(self, request, response):
@@ -131,6 +135,11 @@ class Arena(Node):
         else:
             print("Place brick first!")
         return response
+    
+    def brick_slide(self):
+        # theta = 45 degrees
+        # 
+        return
 
 def main(args=None):
     rclpy.init(args=args)

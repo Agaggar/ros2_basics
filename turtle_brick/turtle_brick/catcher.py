@@ -34,7 +34,7 @@ class Catcher(Node):
         self.current = Point(x=0.0,y=0.0,z=self.platform_height)
         self.goal_sub = self.create_subscription(Point, "goal_message", self.goal_move_callback, 1)
         self.current_pos = Pose(x=0.0,y=0.0,theta=0.0,linear_velocity=0.0,angular_velocity=0.0)
-        self.pos_or_subscriber = self.create_subscription(Pose, "turtlesim/turtle1/pose", self.pos_or_callback, 10)
+        self.pos_or_subscriber = self.create_subscription(Pose, "turtle1/pose", self.pos_or_callback, 10)
         self.reachable_pub = self.create_publisher(Marker, "/text_marker", 10)
 
         self.text_reachable = Marker(type=9)        
@@ -52,7 +52,7 @@ class Catcher(Node):
             t_req = 0.0
         distance_goal = math.sqrt((goal.y-self.current_pos.y)**2+(goal.x-self.current_pos.x)**2)
         height_goal = goal.z - self.platform_height
-        
+        print(height_goal)
         self.state = State.BRICK_PUBLISHED
         if distance_goal/self.max_velocity <= t_req and height_goal >= .5*self.g*t_req**2:
             self.reachable = True
@@ -64,7 +64,7 @@ class Catcher(Node):
             self.text_reachable.id = 10
             self.text_reachable.pose._position.z = self.wheel_radius
             self.text_reachable.text = "Unreachable"
-            self.text_reachable.lifetime = Duration(sec=3,nanosec=0)
+            self.text_reachable.lifetime = Duration(sec=3.0,nanosec=0)
             self.text_reachable.color.a = 1.0
         return
     

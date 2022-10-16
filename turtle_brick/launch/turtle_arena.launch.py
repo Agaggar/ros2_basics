@@ -18,19 +18,14 @@ def generate_launch_description():
             PythonLaunchDescriptionSource([
                 PathJoinSubstitution([
                     FindPackageShare('turtle_brick'),
-                    'show_turtle.launch.py'
+                    'run_turtle.launch.py'
                 ])
             ]),
         ),
         Node(
-            package='turtlesim',
-            executable='turtlesim_node',
-            name='sim'
-        ),
-        Node(
             package='turtle_brick',
-            executable='turtle_robot',
-            name='turtle_robot',
+            executable='catcher',
+            name='catcher',
             output='screen',
             parameters=[robot_configs]
         )

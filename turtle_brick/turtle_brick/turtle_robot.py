@@ -9,8 +9,9 @@ from turtlesim.srv import TeleportAbsolute, SetPen
 from turtlesim.msg import Pose
 import time
 from math import pi
-from geometry_msgs.msg import Twist, Vector3, TransformStamped, Point
+from geometry_msgs.msg import Twist, Vector3, TransformStamped, Point, PoseWithCovariance, TwistWithCovariance
 from nav_msgs.msg import Odometry
+from std_msgs.msg import Header
 
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
@@ -39,6 +40,7 @@ class TurtleRobot(Node):
         self.odom_pub = self.create_publisher(Odometry, "odom", 10)
         self.goal_sub = self.create_subscription(Point, "goal_message", self.goal_move_callback, 1)
         self.current_pos = Pose(x=0.0,y=0.0,theta=0.0,linear_velocity=0.0,angular_velocity=0.0)
+        self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
         self.spawn_pos = None
         self.odom_bool = False
         self.state = State.STOPPED
@@ -55,6 +57,16 @@ class TurtleRobot(Node):
 
         # Create a timer to do the rest of the transforms
         self.tmr = self.create_timer(1/100.0, self.timer_callback)
+    
+    def twist_to_odom(self, conv_twist):
+        head = Header()
+        head.stamp = self.get_clock().now().to_msg()
+        head.frame_id = "odom"
+        pos = PoseWithCovariance()
+        pos.pose = self.current_pos
+        twis = TwistWithCovariance()
+        twis.twist = conv_twist
+        return Odometry(header=head,child_frame_id="base_link", pose=pos, twist=twis)
 
     def timer_callback(self):
         if self.odom_bool == True:
@@ -71,12 +83,15 @@ class TurtleRobot(Node):
         self.odom_base.header.frame_id = "odom"
         self.odom_base.child_frame_id = "base_link"
         self.odom_base.header.stamp = self.get_clock().now().to_msg()
-        self.odom_base.transform.translation.x = self.current_pos.x - self.spawn_pos.x # offset by half of wheel_length
+        self.odom_base.transform.translation.x = self.current_pos.x - self.spawn_pos.x + self.wheel_radius/2 # offset by half of wheel_length
         self.odom_base.transform.translation.y = self.current_pos.y - self.spawn_pos.y
         self.broadcaster.sendTransform(self.odom_base)
 
         if self.state == State.MOVING:
             self.move(self.goal)
+        else:
+            self.vel_publisher.publish(self.current_twist)
+
     
     def pos_or_callback(self, msg):
         """Called by self.pos_or_subscriber
@@ -94,13 +109,20 @@ class TurtleRobot(Node):
     
     def move(self, goal):
         goal_theta = math.atan2((goal.y-self.current_pos.y), (goal.x-self.current_pos.x))
+        print(goal_theta)
         goal_distance = math.sqrt((goal.y-self.current_pos.y)**2+(goal.x-self.current_pos.x)**2)
+        if abs(self.current_pos.theta - goal_theta) >= 0:
+            if goal_theta >= 0.0:
+                self.current_twist.angular.z = 1.0
+            else:
+                self.current_twist.angular.z = -1.0
+                self.vel_publisher.publish(self.current_twist)
+        if goal_distance > 0.01:
+            self.current_twist.angular.z = 0.0
+            self.current_twist.linear = Vector3(x = self.max_velocity, y = self.max_velocity, z = 0.0)
         if goal_distance <= 0:
-            self.vel_publisher.publish(Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0)))
-        if abs(self.current_pos.theta - goal_theta)>0.1:
-            self.vel_publisher.publish(Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 3.0)))
-        curr_twist = Twist(linear = Vector3(x = self.max_velocity, y = self.max_velocity, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
-
+            self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
+        self.vel_publisher.publish(self.current_twist)
 
 def main(args=None):
     rclpy.init(args=args)

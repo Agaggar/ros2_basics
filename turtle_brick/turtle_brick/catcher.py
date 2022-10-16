@@ -15,7 +15,7 @@ from tf2_ros.transform_listener import TransformListener
 
 class State(Enum):
     CHILLING = auto()
-    BRICK_PUBLISHED = auto()
+    BRICK_FALLING = auto()
 
 class Catcher(Node):
 
@@ -36,6 +36,8 @@ class Catcher(Node):
         self.goal_pub = self.create_publisher(Point, "goal_message",1)
         # assert all values greater than 0
 
+        self.prev_brick_z1 = None
+        self.prev_brick_z2 = None
         self.current = Point(x=0.0,y=0.0,z=self.platform_height)
         self.current_pos = Pose(x=0.0,y=0.0,theta=0.0,linear_velocity=0.0,angular_velocity=0.0)
         self.pos_or_subscriber = self.create_subscription(Pose, "turtle1/pose", self.pos_or_callback, 10)
@@ -54,11 +56,24 @@ class Catcher(Node):
             # print("not published yet")
             return
         if self.world_brick:
-            self.state = State.BRICK_PUBLISHED
+            print(self.world_brick.transform.translation.z)
+            if self.prev_brick_z1 == None:
+                self.prev_brick_z1 = self.world_brick.transform.translation.z
+            else:
+                if (self.prev_brick_z1 - self.world_brick.transform.translation.z) > 0.0:
+                    if self.prev_brick_z2 == None:
+                        self.prev_brick_z2 = self.world_brick.transform.translation.z
+                    else:
+                        if (self.prev_brick_z2 - self.world_brick.transform.translation.z) > 0.0:
+                            self.state = State.BRICK_FALLING
+                        else:
+                            self.prev_brick_z1 = self.world_brick.transform.translation.z
+                            self.prev_brick_z2 = None
+                else:
+                    self.prev_brick_z1 = self.world_brick.transform.translation.z
+        # print(self.prev_brick_z1, self.prev_brick_z2, self.world_brick.transform.translation.z)
+        if self.state == State.BRICK_FALLING:
             self.check_goal()
-        
-        if self.state == State.BRICK_PUBLISHED and self.reachable == False:
-            self.reachable_pub.publish(self.text_reachable)
         return
     
     def check_goal(self):
@@ -83,6 +98,7 @@ class Catcher(Node):
             self.text_reachable.text = "Unreachable"
             self.text_reachable.lifetime = Duration(sec=3,nanosec=0)
             self.text_reachable.color.a = 1.0
+            self.reachable_pub.publish(self.text_reachable)
         return
     
     def pos_or_callback(self,msg):

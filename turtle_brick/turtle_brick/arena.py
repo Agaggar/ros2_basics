@@ -78,7 +78,7 @@ class Arena(Node):
     def timer_callback(self):
         if (self.count%25) == 0:
             self.marker_pub.publish(self.marker_walls_border)
-        if self.state == State.PLACE_BRICK:
+        if self.state != State.RUNNING:
             self.odom_brick = TransformStamped()
             self.odom_brick.header.stamp = self.get_clock().now().to_msg()
             self.odom_brick.header.frame_id = "world"

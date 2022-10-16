@@ -10,7 +10,7 @@ from turtle_brick_interfaces.srv import Place
 from turtlesim.srv import TeleportAbsolute, SetPen
 from turtlesim.msg import Pose
 from geometry_msgs.msg import Point
-import time
+import rclpy.time
 from math import pi
 from geometry_msgs.msg import Twist, Vector3, TransformStamped, Quaternion
 from builtin_interfaces.msg import Duration
@@ -18,6 +18,8 @@ from builtin_interfaces.msg import Duration
 from visualization_msgs.msg import Marker, MarkerArray
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
 
 class State(Enum):
     RUNNING = auto()
@@ -50,6 +52,7 @@ class Arena(Node):
         self.g = self.get_parameter("gravity").get_parameter_value().double_value
         self.wheel_radius = self.get_parameter("wheel_radius").get_parameter_value().double_value
         self.platform_height = self.get_parameter("platform_height").get_parameter_value().double_value
+        self.platform_radius = 5*self.wheel_radius
         self.max_velocity = self.get_parameter("max_velocity").get_parameter_value().double_value
         # assert all values greater than 0
 
@@ -88,6 +91,9 @@ class Arena(Node):
         self.marker_brick.scale.x = 1.0
         self.marker_brick.scale.y = 2.0
         self.marker_brick.scale.z = 1.0
+
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
     
     def timer_callback(self):
         if (self.count%25) == 0:
@@ -103,16 +109,27 @@ class Arena(Node):
         
         if self.state != State.RUNNING:
             self.brick_pub.publish(self.marker_brick)
+            try:
+                odom_brick = self.tf_buffer.lookup_transform(
+                    "odom", "brick", rclpy.time.Time())
+            except:
+                return
         if self.state == State.DROP_BRICK:
             self.time = self.time + 1/self.frequency
             self.marker_brick.pose.position.z = self.brick_z_initial - 0.5*self.g*self.time**2
-            # if self.marker_brick.pose.position.z == self.platform.z and (abs(self.marker_brick.pose.position.x-self.platform.x)<=self.wheel_radius) and (abs(self.marker_brick.pose.position.y-self.platform.y)<=self.wheel_radius)
+            # NOTE THAT THE BRICK WILL GO TO PLATFORM EVEN IF IT STARTS BELOW THE PLATFORM, SINCE CATCHER ISN'T COMMUNICATING CATCHABILITY 
+            if ((odom_brick.transform.translation.z - self.marker_brick.scale.z/2.0) <= self.platform_height):
+                self.state = State.BRICK_PLATFORM
             if self.marker_brick.pose.position.z <= self.marker_brick.scale.z/2.0:
                 self.state = State.RUNNING
                 self.brick_z_initial=0.0
         if self.state == State.BRICK_PLATFORM:
+            self.marker_brick.pose.position.x = 0.0
+            self.marker_brick.pose.position.y = 0.0
+            self.marker_brick.pose.position.z = self.marker_brick.scale.z/2.0 + self.wheel_radius/2.0
             self.marker_brick.header.frame_id = "platform_tilt"
-            self.brick_slide()
+            # self.brick_slide()
+            pass
         self.count +=1
 
     def place_callback(self, request, response):

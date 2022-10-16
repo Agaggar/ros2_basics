@@ -10,16 +10,12 @@ from turtle_brick_interfaces.srv import Place
 from turtlesim.srv import TeleportAbsolute, SetPen
 from turtlesim.msg import Pose
 from geometry_msgs.msg import Point
-import rclpy.time
-from math import pi
 from geometry_msgs.msg import Twist, Vector3, TransformStamped, Quaternion
 from builtin_interfaces.msg import Duration
 
 from visualization_msgs.msg import Marker, MarkerArray
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
-from tf2_ros.buffer import Buffer
-from tf2_ros.transform_listener import TransformListener
 
 class State(Enum):
     RUNNING = auto()
@@ -56,8 +52,6 @@ class Arena(Node):
         self.max_velocity = self.get_parameter("max_velocity").get_parameter_value().double_value
         # assert all values greater than 0
 
-        self.goal_pub = self.create_publisher(Point, "goal_message",1)
-        
         self.marker_walls_border = Marker()
         self.marker_walls_border.header.frame_id = "world"
         self.marker_walls_border.header.stamp = self.get_clock().now().to_msg()
@@ -81,6 +75,42 @@ class Arena(Node):
 
         self.marker_walls_border.points = self.points
 
+    def timer_callback(self):
+        if (self.count%25) == 0:
+            self.marker_pub.publish(self.marker_walls_border)
+        if self.state == State.PLACE_BRICK:
+            self.odom_brick = TransformStamped()
+            self.odom_brick.header.stamp = self.get_clock().now().to_msg()
+            self.odom_brick.header.frame_id = "world"
+            self.odom_brick.child_frame_id = "brick"
+            self.odom_brick.transform.translation.x = self.marker_brick.pose.position.x
+            self.odom_brick.transform.translation.y = self.marker_brick.pose.position.y
+            self.odom_brick.transform.translation.z = self.marker_brick.pose.position.z
+            self.broadcaster.sendTransform(self.odom_brick)
+            
+        if self.state != State.RUNNING:
+            self.brick_pub.publish(self.marker_brick)
+        if self.state == State.DROP_BRICK:
+            self.time = self.time + 1/self.frequency
+            self.marker_brick.pose.position.z = self.brick_z_initial - 0.5*self.g*self.time**2
+            # NOTE THAT THE BRICK WILL GO TO PLATFORM EVEN IF IT STARTS BELOW THE PLATFORM, SINCE CATCHER ISN'T COMMUNICATING CATCHABILITY 
+            if ((self.marker_brick.pose.position.z - self.marker_brick.scale.z/2.0) <= self.platform_height):
+                self.state = State.BRICK_PLATFORM
+            if self.marker_brick.pose.position.z <= self.marker_brick.scale.z/2.0:
+                self.state = State.RUNNING
+                self.brick_z_initial=0.0
+        if self.state == State.BRICK_PLATFORM:
+            self.marker_brick.pose.position.x = 0.0
+            self.marker_brick.pose.position.y = 0.0
+            self.marker_brick.pose.position.z = self.marker_brick.scale.z/2.0 + self.wheel_radius/2.0
+            self.marker_brick.header.frame_id = "platform_tilt"
+            self.marker_brick.header.stamp = self.get_clock().now().to_msg()
+            # self.brick_slide()
+            pass
+        self.count +=1
+
+    def place_callback(self, request, response):
+        self.state = State.PLACE_BRICK
         self.marker_brick = Marker(type=1)
         self.marker_brick.header.frame_id = "world"
         self.marker_brick.header.stamp = self.get_clock().now().to_msg()
@@ -91,49 +121,6 @@ class Arena(Node):
         self.marker_brick.scale.x = 1.0
         self.marker_brick.scale.y = 2.0
         self.marker_brick.scale.z = 1.0
-
-        self.tf_buffer = Buffer()
-        self.tf_listener = TransformListener(self.tf_buffer, self)
-    
-    def timer_callback(self):
-        if (self.count%25) == 0:
-            self.marker_pub.publish(self.marker_walls_border)
-        self.odom_brick = TransformStamped()
-        self.odom_brick.header.stamp = self.get_clock().now().to_msg()
-        self.odom_brick.header.frame_id = "world"
-        self.odom_brick.child_frame_id = "brick"
-        self.odom_brick.transform.translation.x = self.marker_brick.pose.position.x
-        self.odom_brick.transform.translation.y = self.marker_brick.pose.position.y
-        self.odom_brick.transform.translation.z = self.marker_brick.pose.position.z
-        self.broadcaster.sendTransform(self.odom_brick)
-        
-        if self.state != State.RUNNING:
-            self.brick_pub.publish(self.marker_brick)
-            try:
-                odom_brick = self.tf_buffer.lookup_transform(
-                    "odom", "brick", rclpy.time.Time())
-            except:
-                return
-        if self.state == State.DROP_BRICK:
-            self.time = self.time + 1/self.frequency
-            self.marker_brick.pose.position.z = self.brick_z_initial - 0.5*self.g*self.time**2
-            # NOTE THAT THE BRICK WILL GO TO PLATFORM EVEN IF IT STARTS BELOW THE PLATFORM, SINCE CATCHER ISN'T COMMUNICATING CATCHABILITY 
-            if ((odom_brick.transform.translation.z - self.marker_brick.scale.z/2.0) <= self.platform_height):
-                self.state = State.BRICK_PLATFORM
-            if self.marker_brick.pose.position.z <= self.marker_brick.scale.z/2.0:
-                self.state = State.RUNNING
-                self.brick_z_initial=0.0
-        if self.state == State.BRICK_PLATFORM:
-            self.marker_brick.pose.position.x = 0.0
-            self.marker_brick.pose.position.y = 0.0
-            self.marker_brick.pose.position.z = self.marker_brick.scale.z/2.0 + self.wheel_radius/2.0
-            self.marker_brick.header.frame_id = "platform_tilt"
-            # self.brick_slide()
-            pass
-        self.count +=1
-
-    def place_callback(self, request, response):
-        self.state = State.PLACE_BRICK
         self.marker_brick.pose.position.x = request.brick_x
         self.marker_brick.pose.position.y = request.brick_y
         self.marker_brick.pose.position.z = request.brick_z
@@ -143,10 +130,10 @@ class Arena(Node):
         return response
     
     def drop_callback(self,request,response):
-        self.goal_pub.publish(
-            Point(x=self.marker_brick.pose.position.x, 
-            y=self.marker_brick.pose.position.y, 
-            z=self.brick_z_initial))
+        # self.goal_pub.publish(
+        #     Point(x=self.marker_brick.pose.position.x, 
+        #     y=self.marker_brick.pose.position.y, 
+        #     z=self.brick_z_initial))
         if self.state == State.PLACE_BRICK:
             self.state = State.DROP_BRICK
         else:

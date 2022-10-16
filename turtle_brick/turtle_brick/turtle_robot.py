@@ -43,7 +43,8 @@ class TurtleRobot(Node):
         self.goal_sub = self.create_subscription(Point, "goal_message", self.goal_move_callback, 1)
         self.current_pos = Pose(x=0.0,y=0.0,theta=0.0,linear_velocity=0.0,angular_velocity=0.0)
         self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
-        self.spawn_pos = None
+        # change spawn_pos to be a parameter that's passed in
+        self.spawn_pos = Pose(x=5.5444, y=5.5444, theta=0.0, linear_velocity=0.0,angular_velocity=0.0)
         self.odom_bool = False
         self.state = State.STOPPED
         self.goal = Point(x=0.0,y=0.0,z=0.0)
@@ -56,6 +57,15 @@ class TurtleRobot(Node):
         self.wheel_radius = self.get_parameter("wheel_radius").get_parameter_value().double_value
         self.platform_height = self.get_parameter("platform_height").get_parameter_value().double_value
         self.max_velocity = self.get_parameter("max_velocity").get_parameter_value().double_value
+
+        world_base_tf = TransformStamped()
+        world_base_tf.header.stamp = self.get_clock().now().to_msg()
+        world_base_tf.header.frame_id = "world"
+        world_base_tf.child_frame_id = "odom"
+        world_base_tf.transform.translation.x = self.spawn_pos.x
+        world_base_tf.transform.translation.y = self.spawn_pos.y
+        world_base_tf.transform.translation.z = 0.0
+        self.static_broadcaster.sendTransform(world_base_tf)
 
         # Create a timer to do the rest of the transforms
         self.tmr = self.create_timer(1/100.0, self.timer_callback)
@@ -70,17 +80,7 @@ class TurtleRobot(Node):
         twis.twist = conv_twist
         return Odometry(header=head,child_frame_id="base_link", pose=pos, twist=twis)
 
-    def timer_callback(self):
-        if self.odom_bool == True:
-            world_base_tf = TransformStamped()
-            world_base_tf.header.stamp = self.get_clock().now().to_msg()
-            world_base_tf.header.frame_id = "world"
-            world_base_tf.child_frame_id = "odom"
-            world_base_tf.transform.translation.x = self.spawn_pos.x
-            world_base_tf.transform.translation.y = self.spawn_pos.y
-            world_base_tf.transform.translation.z = 0.0
-            self.static_broadcaster.sendTransform(world_base_tf)
-        
+    def timer_callback(self): 
         self.odom_base = TransformStamped()
         self.odom_base.header.frame_id = "odom"
         self.odom_base.child_frame_id = "base_link"

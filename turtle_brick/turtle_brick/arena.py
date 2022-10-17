@@ -93,6 +93,7 @@ class Arena(Node):
         self.js = JointState()
         self.js.name = ['wheel_stem','stem_base','platform_x']
         self.js.position = [float(0.0), float(0.0), float(0.0)]
+        self.brick_place_initial = Point(x=0.0, y=0.0, z=0.0)
 
     def timer_callback(self):
         if (self.count%25) == 0:
@@ -124,6 +125,8 @@ class Arena(Node):
                     self.platform_brick.transform.translation.x <= self.wheel_radius*5) and (
                     self.platform_brick.transform.translation.y <= self.wheel_radius*5):
                 self.time = 0.0
+                self.brick_y_initial = self.world_brick.transform.translation.y
+                self.brick_z_initial = self.world_brick.transform.translation.z
                 self.state = State.BRICK_PLATFORM
             if self.marker_brick.pose.position.z <= self.marker_brick.scale.z/2.0:
                 self.state = State.RUNNING
@@ -131,7 +134,7 @@ class Arena(Node):
         if self.state == State.BRICK_PLATFORM:
             self.marker_brick.pose.position.x = self.current_pos.x
             self.marker_brick.pose.position.y = self.current_pos.y
-            self.marker_brick.pose.position.z = self.platform_height + self.marker_brick.scale.z/2.0 + self.wheel_radius/2.0
+            self.marker_brick.pose.position.z = self.platform_height + self.marker_brick.scale.z/2.0
             try:
                 self.odom_brick = self.tf_buffer.lookup_transform(
                     "odom", "brick", rclpy.time.Time())
@@ -179,6 +182,7 @@ class Arena(Node):
         self.marker_brick.color.a = 1.0
         self.time = 0.0
         self.brick_z_initial = request.brick_z
+        self.brick_place_initial = Point(x=request.brick_x, y=request.brick_y, z=request.brick_z)
         return response
     
     def drop_callback(self,request,response):
@@ -211,19 +215,24 @@ class Arena(Node):
     def tilt_brick(self):
         t_req = math.sqrt(5*self.wheel_radius*2.0/self.g/math.sin(self.tilt_default))
         print(self.time)
+        self.time += 1/self.frequency
         if self.state == State.TILTING_OFF:
-            self.time += 1/self.frequency
-            self.world_brick.transform.rotation = angle_axis_to_quaternion(self.tilt_default, [1.0, 0, 0])
-            self.marker_brick.pose.position.y = self.world_brick.transform.translation.y - 0.5*self.g*math.sin(self.tilt_default)*self.time**2
-            # self.marker_brick.pose.position.z = self.world_brick.transform.translation.z - 0.5*self.g*math.cos(self.tilt_default)*self.time**2
+            self.marker_brick.pose.orientation.x = self.tilt_default
+            self.world_brick.transform.rotation.x = self.tilt_default
+            self.marker_brick.pose.position.y = self.brick_y_initial - 0.5*self.g*math.sin(self.tilt_default)*self.time**2
+            self.marker_brick.pose.position.z = self.brick_z_initial - 0.5*self.g*math.cos(self.tilt_default)*self.time**2
             # z_height = self.marker_brick.pose.position.z
-            print(self.marker_brick.pose.position.y, self.marker_brick.pose.position.z)
+            print(self.marker_brick.pose.position.y, self.marker_brick.pose.position.z, self.marker_brick.pose.orientation.z)
             if self.time >= t_req:
+                self.brick_z_initial = self.marker_brick.pose.position.z
                 self.state = State.TILT_ORIGINAL
         if self.state == State.TILT_ORIGINAL:
-            self.world_brick.transform.rotation = angle_axis_to_quaternion(-1*self.tilt_default, [1.0, 0, 0])
-            self.marker_brick.pose.position.z = (self.platform_height-5*self.wheel_radius*math.cos(self.tilt_default)) - (self.g*math.cos(self.tilt_default)*t_req) - 0.5*self.g*self.time**2
-            if self.marker_brick.pose.position.z <= self.marker_brick.scale.z/2.0:
+            self.marker_brick.pose.orientation.x = 0.0
+            self.world_brick.transform.rotation.x = 0.0
+            self.marker_brick.pose.position.x = self.brick_place_initial.x
+            self.marker_brick.pose.position.y = self.brick_place_initial.y
+            self.marker_brick.pose.position.z = self.brick_place_initial.z
+            if self.world_brick.transform.translation.z <= self.marker_brick.scale.z/2.0:
                 self.state = State.RUNNING
                 self.brick_z_initial=0.0
         return

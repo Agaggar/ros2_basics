@@ -152,6 +152,7 @@ class Arena(Node):
             # self.marker_brick.header.stamp = self.get_clock().now().to_msg()
             # # self.brick_slide()
             pass
+        print(self.state)
         if self.state == State.BACK_TO_HOME:
             if self.js.position[2] == float(0.0):
                 self.js.position[2] = self.tilt_default
@@ -217,9 +218,9 @@ class Arena(Node):
             self.marker_brick.pose.position.z = self.brick_z_initial - 0.5*self.g*math.cos(self.tilt_default)*self.time**2
             # z_height = self.marker_brick.pose.position.z
             # print(self.marker_brick.pose.position.y, self.marker_brick.pose.position.z, self.marker_brick.pose.orientation.z)
-            if self.time >= t_req:
-                self.brick_z_initial = self.marker_brick.pose.position.z
-                self.state = State.TILT_ORIGINAL
+        if self.time >= t_req:
+            self.brick_z_initial = self.marker_brick.pose.position.z
+            self.state = State.TILT_ORIGINAL
         if self.state == State.TILT_ORIGINAL:
             self.marker_brick.pose.orientation.x = 0*self.tilt_default
             self.world_brick.transform.rotation.x = 0*self.tilt_default

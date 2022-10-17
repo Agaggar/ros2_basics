@@ -58,7 +58,6 @@ class Catcher(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self)    
 
     def timer_callback(self):
-        print(self.state)
         try:
             self.world_brick = self.tf_buffer.lookup_transform(
                 "world", "brick", rclpy.time.Time())

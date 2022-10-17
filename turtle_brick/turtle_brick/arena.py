@@ -162,7 +162,6 @@ class Arena(Node):
             self.js.position[2] = 0.0
             self.tilt_brick()
         self.count +=1
-        print(self.state)
 
     def place_callback(self, request, response):
         self.state = State.PLACE_BRICK
@@ -186,10 +185,6 @@ class Arena(Node):
         return response
     
     def drop_callback(self,request,response):
-        # self.goal_pub.publish(
-        #     Point(x=self.marker_brick.pose.position.x, 
-        #     y=self.marker_brick.pose.position.y, 
-        #     z=self.brick_z_initial))
         if self.state == State.PLACE_BRICK:
             self.state = State.DROP_BRICK
         else:
@@ -214,7 +209,6 @@ class Arena(Node):
 
     def tilt_brick(self):
         t_req = math.sqrt(5*self.wheel_radius*2.0/self.g/math.sin(self.tilt_default))
-        print(self.time)
         self.time += 1/self.frequency
         if self.state == State.TILTING_OFF:
             self.marker_brick.pose.orientation.x = self.tilt_default
@@ -222,19 +216,18 @@ class Arena(Node):
             self.marker_brick.pose.position.y = self.brick_y_initial - 0.5*self.g*math.sin(self.tilt_default)*self.time**2
             self.marker_brick.pose.position.z = self.brick_z_initial - 0.5*self.g*math.cos(self.tilt_default)*self.time**2
             # z_height = self.marker_brick.pose.position.z
-            print(self.marker_brick.pose.position.y, self.marker_brick.pose.position.z, self.marker_brick.pose.orientation.z)
+            # print(self.marker_brick.pose.position.y, self.marker_brick.pose.position.z, self.marker_brick.pose.orientation.z)
             if self.time >= t_req:
                 self.brick_z_initial = self.marker_brick.pose.position.z
                 self.state = State.TILT_ORIGINAL
         if self.state == State.TILT_ORIGINAL:
-            self.marker_brick.pose.orientation.x = 0.0
-            self.world_brick.transform.rotation.x = 0.0
+            self.marker_brick.pose.orientation.x = 0*self.tilt_default
+            self.world_brick.transform.rotation.x = 0*self.tilt_default
             self.marker_brick.pose.position.x = self.brick_place_initial.x
             self.marker_brick.pose.position.y = self.brick_place_initial.y
             self.marker_brick.pose.position.z = self.brick_place_initial.z
-            if self.world_brick.transform.translation.z <= self.marker_brick.scale.z/2.0:
-                self.state = State.RUNNING
-                self.brick_z_initial=0.0
+            self.state = State.PLACE_BRICK
+            self.brick_z_initial = self.brick_place_initial.z
         return
 
 def main(args=None):

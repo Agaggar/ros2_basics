@@ -120,7 +120,7 @@ class TurtleRobot(Node):
             self.back_to_center()
         if self.state == State.TILT:
             self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
-            self.vel_publisher.publish(self.current_twist)
+            self.state = State.STOPPED
 
         self.vel_publisher.publish(self.current_twist)
         self.odom_pub.publish(self.twist_to_odom(self.current_twist))        

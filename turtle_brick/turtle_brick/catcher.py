@@ -9,6 +9,7 @@ from visualization_msgs.msg import Marker
 from turtlesim.msg import Pose
 from geometry_msgs.msg import Point
 from builtin_interfaces.msg import Duration
+from turtle_brick_interfaces.srv import Place
 from turtle_brick_interfaces.msg import Tilt
 
 from tf2_ros.buffer import Buffer
@@ -38,11 +39,13 @@ class Catcher(Node):
         self.goal_pub = self.create_publisher(Point, "goal_message", 1)
         # assert all values greater than 0
         self.goal = None
+        self.goal_initial = None
         self.t_req = 0.0
         self.prev_brick_z1 = None
         self.prev_brick_z2 = None
         self.current = Point(x=0.0, y=0.0, z=self.platform_height)
         self.current_pos = Pose(x=0.0, y=0.0, theta=0.0, linear_velocity=0.0, angular_velocity=0.0)
+        self.brick_place = self.create_service(Place, "brick_place", self.place_callback)
         self.pos_or_subscriber = self.create_subscription(Pose, "turtle1/pose", self.pos_or_callback, 10)
         self.reachable_pub = self.create_publisher(Marker, "/text_marker", 10)
         self.tilt_pub = self.create_publisher(Tilt, "tilt", 5)
@@ -54,6 +57,7 @@ class Catcher(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self)    
 
     def timer_callback(self):
+        print(self.state)
         try:
             self.world_brick = self.tf_buffer.lookup_transform(
                 "world", "brick", rclpy.time.Time())
@@ -77,6 +81,8 @@ class Catcher(Node):
                 else:
                     self.prev_brick_z1 = self.world_brick.transform.translation.z
             if self.state == State.CAUGHT:
+                self.prev_brick_z1 = self.goal_initial.z
+                self.prev_brick_z2 = None
                 try:
                     self.odom_brick = self.tf_buffer.lookup_transform(
                         "odom", "brick", rclpy.time.Time())
@@ -87,7 +93,10 @@ class Catcher(Node):
                     if (self.odom_brick.transform.translation.x <= self.max_velocity/10.0) and (
                             self.odom_brick.transform.translation.y <= self.max_velocity/10.0):
                         self.tilt_pub.publish(Tilt(angle=self.theta_tilt_default))
-        # print(self.prev_brick_z1, self.prev_brick_z2, self.world_brick.transform.translation.z)
+                    if abs(self.odom_brick.transform.translation.z - self.goal_initial.z) <= 0.01:
+                        # self.goal_pub.publish(self.goal_initial)
+                        self.state = State.CHILLING
+        print(self.prev_brick_z1, self.prev_brick_z2, self.world_brick.transform.translation.z)
         if self.state == State.BRICK_FALLING:
             self.check_goal()
         return
@@ -103,6 +112,8 @@ class Catcher(Node):
         if distance_goal/self.max_velocity <= self.t_req and self.state == State.BRICK_FALLING:
             self.reachable = True
             self.goal = Point(x=goal.x, y=goal.y, z=goal.z)
+            if self.goal_initial is None:
+                self.goal_initial = self.goal
             self.goal_pub.publish(self.goal)
             # if height_goal <= (1.5*self.wheel_radius + 0.05): # distance between origins
             #     self.state = State.CAUGHT
@@ -131,6 +142,10 @@ class Catcher(Node):
         """
         self.current_pos = msg
         return
+
+    def place_callback(self, request, response):
+        self.brick_place_initial = Point(x=request.brick_x, y=request.brick_y, z=request.brick_z)
+        return response
 
 
 def main(args=None):

@@ -92,7 +92,8 @@ class Catcher(Node):
         if distance_goal/self.max_velocity <= self.t_req and height_goal >= .5*self.g*self.t_req**2 and self.state == State.BRICK_FALLING:
             self.reachable = True
             self.goal_pub.publish(Point(x=goal.x,y=goal.y,z=goal.z))
-            self.state = State.CAUGHT
+            # if height_goal <= (1.5*self.wheel_radius + 0.05): # distance between origins
+            #     self.state = State.CAUGHT
         else:
             self.reachable = False
         if self.reachable == False:
@@ -107,17 +108,16 @@ class Catcher(Node):
             self.text_reachable.color.a = 1.0
             self.reachable_pub.publish(self.text_reachable)
         if distance_goal <= self.max_velocity/10.0:
+            self.state = State.CAUGHT
             self.prev_brick_z1 = None
             self.prev_brick_z2 = None
-        print(height_goal)
         return
     
     def pos_or_callback(self,msg):
         """Called by self.pos_or_subscriber
         Subscribes to pose, and updates current point (x,y) with pose (x,y)
         """
-        self.current_pos.x = msg.x
-        self.current_pos.y = msg.y
+        self.current_pos = msg
         return
 
 

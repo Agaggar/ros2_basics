@@ -44,6 +44,8 @@ class Arena(Node):
         self.broadcaster = TransformBroadcaster(self)
         self.time = 0.0
         self.brick_z_initial = 0.0
+        self.current_pos = Pose(x=0.0,y=0.0,theta=0.0,linear_velocity=0.0,angular_velocity=0.0)
+        self.pos_or_subscriber = self.create_subscription(Pose, "turtle1/pose", self.pos_or_callback, 10)
         self.declare_parameter("gravity", 9.8, ParameterDescriptor(description="Accel due to gravity, 9.8 by default."))
         self.declare_parameter("wheel_radius", 0.5, ParameterDescriptor(description="Wheel radius"))
         self.declare_parameter("platform_height", 0.6, ParameterDescriptor(
@@ -116,12 +118,15 @@ class Arena(Node):
                 self.state = State.RUNNING
                 self.brick_z_initial=0.0
         if self.state == State.BRICK_PLATFORM:
-            self.marker_brick.pose.position.x = 0.0
-            self.marker_brick.pose.position.y = 0.0
-            self.marker_brick.pose.position.z = self.marker_brick.scale.z/2.0 + self.wheel_radius/2.0
-            self.marker_brick.header.frame_id = "platform_tilt"
-            self.marker_brick.header.stamp = self.get_clock().now().to_msg()
-            # self.brick_slide()
+            self.marker_brick.pose.position.x = self.current_pos.x
+            self.marker_brick.pose.position.y = self.current_pos.y
+            self.marker_brick.pose.position.z = self.platform_height + self.marker_brick.scale.z/2.0 + self.wheel_radius/2.0
+            # self.marker_brick.pose.position.x = 0.0
+            # self.marker_brick.pose.position.y = 0.0
+            # self.marker_brick.pose.position.z = self.marker_brick.scale.z/2.0 + self.wheel_radius/2.0
+            # self.marker_brick.header.frame_id = "platform_tilt"
+            # self.marker_brick.header.stamp = self.get_clock().now().to_msg()
+            # # self.brick_slide()
             pass
         self.count +=1
 
@@ -155,6 +160,13 @@ class Arena(Node):
         else:
             print("Place brick first!")
         return response
+    
+    def pos_or_callback(self,msg):
+        """Called by self.pos_or_subscriber
+        Subscribes to pose, and updates current point (x,y) with pose (x,y)
+        """
+        self.current_pos = msg
+        return
     
     def brick_slide(self):
         # theta = 45 degrees

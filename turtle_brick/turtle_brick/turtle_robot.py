@@ -20,6 +20,8 @@ from tf2_ros import TransformBroadcaster
 class State(Enum):
     MOVING = auto()
     STOPPED = auto()
+    CAUGHT = auto()
+    TILT = auto()
 
 class TurtleRobot(Node):
     """ Creates robot
@@ -86,15 +88,20 @@ class TurtleRobot(Node):
         self.odom_base.header.frame_id = "odom"
         self.odom_base.child_frame_id = "base_link"
         self.odom_base.header.stamp = self.get_clock().now().to_msg()
-        self.odom_base.transform.translation.x = self.current_pos.x - self.spawn_pos.x + self.wheel_radius/2 # offset by half of wheel_length
+        self.odom_base.transform.translation.x = self.current_pos.x - self.spawn_pos.x # offset by half of wheel_length
         self.odom_base.transform.translation.y = self.current_pos.y - self.spawn_pos.y
         self.broadcaster.sendTransform(self.odom_base)
 
         if self.state == State.MOVING:
             self.move(self.goal)
-        else:
+        if self.state == State.STOPPED:
             self.vel_publisher.publish(self.current_twist)
-
+        if self.state == State.CAUGHT:
+            self.back_to_center()
+        if self.state == State.TILT:
+            self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
+            self.vel_publisher.publish(self.current_twist)
+            
     
     def pos_or_callback(self, msg):
         """Called by self.pos_or_subscriber
@@ -114,27 +121,34 @@ class TurtleRobot(Node):
     def move(self, goal):
         self.goal_theta = math.atan2((goal.y-self.current_pos.y), (goal.x-self.current_pos.x))
         goal_distance = math.sqrt((goal.y-self.current_pos.y)**2+(goal.x-self.current_pos.x)**2)
-        # print(goal_distance, self.goal_theta)
-        # if self.goal_theta >= 0.01:
-        #     if(self.current_pos.theta - self.goal_theta) >= 0.01:
-        #         self.current_twist.angular.z = 1.0
-        # if self.goal_theta <= -0.01:
-        #     if(self.current_pos.theta - self.goal_theta) <= -0.01:
-        #         self.current_twist.angular.z = -1.0
-        # if abs(self.current_pos.theta - self.goal_theta) < 0.01:
-        #     self.current_twist.angular.z = 0.0
-        # # self.vel_publisher.publish(self.current_twist)
+        if goal_distance > self.max_velocity/10.0:
+            self.current_twist.linear = Vector3(x = self.max_velocity*math.cos(self.goal_theta), y = self.max_velocity*math.sin(self.goal_theta), z = 0.0)
+        if goal_distance <= self.max_velocity/10.0:
+            self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
+            self.state = State.CAUGHT
+        self.vel_publisher.publish(self.current_twist)
+        self.odom_pub.publish(self.twist_to_odom(self.current_twist))
+        # print(goal.y-self.current_pos.y)
+    
+    def back_to_center(self):
+        self.goal_theta = pi + self.goal_theta
+        goal = Point(x=self.spawn_pos.x, y=self.spawn_pos.y, z=0.0)
+        # print(goal.y-self.current_pos.y)
+        goal_distance = math.sqrt((goal.y-self.current_pos.y)**2+(goal.x-self.current_pos.x)**2)
         if goal_distance > self.max_velocity/10.0:
             # self.current_twist.angular.z = 0.0
             self.current_twist.linear = Vector3(x = self.max_velocity*math.cos(self.goal_theta), y = self.max_velocity*math.sin(self.goal_theta), z = 0.0)
         else:
             self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
+            self.state = State.TILT
         self.vel_publisher.publish(self.current_twist)
         self.odom_pub.publish(self.twist_to_odom(self.current_twist))
-    
-    # def tilt_callback(self,request,response):
-    #     tilt_angle = request.angle
-    #     return response
+        
+        return
+
+    def tilt_callback(self,request,response):
+        tilt_angle = request.angle
+        return response
 
 def main(args=None):
     rclpy.init(args=args)

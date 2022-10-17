@@ -118,12 +118,12 @@ class Arena(Node):
             except:
                 # print("not published yet")
                 return
+            # print(self.platform_brick.transform.translation.x, self.platform_brick.transform.translation.y)
             self.time = self.time + 1/self.frequency
             self.marker_brick.pose.position.z = self.brick_z_initial - 0.5*self.g*self.time**2
-            # NOTE THAT THE BRICK WILL GO TO PLATFORM EVEN IF IT STARTS BELOW THE PLATFORM, SINCE CATCHER ISN'T COMMUNICATING CATCHABILITY 
-            if ((self.marker_brick.pose.position.z - self.marker_brick.scale.z/2.0) <= self.platform_height) and (
-                    self.platform_brick.transform.translation.x <= self.wheel_radius*5) and (
-                    self.platform_brick.transform.translation.y <= self.wheel_radius*5):
+            if (abs(self.marker_brick.pose.position.z - self.marker_brick.scale.z/2.0) <= self.platform_height) and (
+                abs(self.platform_brick.transform.translation.x )<= self.wheel_radius*5) and (
+                    abs(self.platform_brick.transform.translation.y) <= self.wheel_radius*5):
                 self.time = 0.0
                 self.brick_y_initial = self.world_brick.transform.translation.y
                 self.brick_z_initial = self.world_brick.transform.translation.z

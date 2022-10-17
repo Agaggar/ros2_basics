@@ -52,6 +52,7 @@ class Catcher(Node):
         self.theta_tilt_default = math.pi/6
 
         self.text_reachable = Marker(type=9)
+        self.text_count = 0
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)    
@@ -96,7 +97,7 @@ class Catcher(Node):
                     if abs(self.odom_brick.transform.translation.z - self.goal_initial.z) <= 0.01:
                         # self.goal_pub.publish(self.goal_initial)
                         self.state = State.CHILLING
-        print(self.prev_brick_z1, self.prev_brick_z2, self.world_brick.transform.translation.z)
+        # print(self.prev_brick_z1, self.prev_brick_z2, self.world_brick.transform.translation.z)
         if self.state == State.BRICK_FALLING:
             self.check_goal()
         return
@@ -127,9 +128,15 @@ class Catcher(Node):
             self.text_reachable.id = 10
             self.text_reachable.pose.position.z = self.wheel_radius
             self.text_reachable.text = "Unreachable"
-            self.text_reachable.lifetime = Duration(sec=3, nanosec=0)
+            self.text_reachable.lifetime = Duration(sec=3)
+            self.text_reachable.color.r = 230.0/255.0
+            self.text_reachable.color.g = 217.0/255.0
+            self.text_reachable.color.b = 200.0/255.0
             self.text_reachable.color.a = 1.0
-            self.reachable_pub.publish(self.text_reachable)
+            if self.text_count == 0:
+                self.reachable_pub.publish(self.text_reachable)
+                self.text_count += 1
+            self.state = State.CHILLING
         if distance_goal <= self.max_velocity/10.0:
             self.state = State.CAUGHT
             self.prev_brick_z1 = None

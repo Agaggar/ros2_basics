@@ -15,7 +15,7 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/Place.srv"
-  "srv/Tilt.srv"
+  "msg/Tilt.msg"
 )
 
 if(BUILD_TESTING)

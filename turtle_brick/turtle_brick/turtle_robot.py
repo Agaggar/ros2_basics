@@ -4,15 +4,15 @@ from rclpy.node import Node
 from rcl_interfaces.msg import ParameterDescriptor
 from std_srvs.srv import Empty
 from enum import Enum, auto
-# from turtle_brick_interfaces.srv blah blah
 from turtlesim.srv import TeleportAbsolute, SetPen
 from turtlesim.msg import Pose
-from turtle_brick_interfaces.srv import Tilt
+from turtle_brick_interfaces.msg import Tilt
 import time
 from math import pi
 from geometry_msgs.msg import Twist, Vector3, TransformStamped, Point, PoseWithCovariance, TwistWithCovariance
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Header
+from .quaternion import angle_axis_to_quaternion
 
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
@@ -37,7 +37,6 @@ class TurtleRobot(Node):
         self.static_broadcaster = StaticTransformBroadcaster(self)
         self.broadcaster = TransformBroadcaster(self)
         self.pos_or_subscriber = self.create_subscription(Pose, "turtle1/pose", self.pos_or_callback, 10)
-        self.tilt_subscriber = self.create_service(Tilt, "tilt", self.tilt_callback)
         self.vel_publisher = self.create_publisher(Twist, "turtle1/cmd_vel", 10)
         self.odom_pub = self.create_publisher(Odometry, "odom", 10)
         self.goal_sub = self.create_subscription(Point, "goal_message", self.goal_move_callback, 1)
@@ -48,6 +47,7 @@ class TurtleRobot(Node):
         self.odom_bool = False
         self.state = State.STOPPED
         self.goal = Point(x=0.0,y=0.0,z=0.0)
+        self.goal_theta = 0.0
 
         self.declare_parameter("gravity", 9.8, ParameterDescriptor(description="Accel due to gravity, 9.8 by default."))
         self.declare_parameter("wheel_radius", 0.5, ParameterDescriptor(description="Wheel radius"))
@@ -75,7 +75,8 @@ class TurtleRobot(Node):
         head.stamp = self.get_clock().now().to_msg()
         head.frame_id = "odom"
         pos = PoseWithCovariance()
-        pos.pose = self.current_pos
+        pos.pose.position = Point(x=self.current_pos.x, y=self.current_pos.y, z=0.0)
+        pos.pose.orientation = angle_axis_to_quaternion(self.goal_theta, [0, 0, 1.0])
         twis = TwistWithCovariance()
         twis.twist = conv_twist
         return Odometry(header=head,child_frame_id="base_link", pose=pos, twist=twis)
@@ -111,28 +112,29 @@ class TurtleRobot(Node):
         return
     
     def move(self, goal):
-        goal_theta = math.atan2((goal.y-self.current_pos.y), (goal.x-self.current_pos.x))
+        self.goal_theta = math.atan2((goal.y-self.current_pos.y), (goal.x-self.current_pos.x))
         goal_distance = math.sqrt((goal.y-self.current_pos.y)**2+(goal.x-self.current_pos.x)**2)
-        print(goal_distance, goal_theta)
-        # if goal_theta >= 0.01:
-        #     if(self.current_pos.theta - goal_theta) >= 0.01:
+        # print(goal_distance, self.goal_theta)
+        # if self.goal_theta >= 0.01:
+        #     if(self.current_pos.theta - self.goal_theta) >= 0.01:
         #         self.current_twist.angular.z = 1.0
-        # if goal_theta <= -0.01:
-        #     if(self.current_pos.theta - goal_theta) <= -0.01:
+        # if self.goal_theta <= -0.01:
+        #     if(self.current_pos.theta - self.goal_theta) <= -0.01:
         #         self.current_twist.angular.z = -1.0
-        # if abs(self.current_pos.theta - goal_theta) < 0.01:
+        # if abs(self.current_pos.theta - self.goal_theta) < 0.01:
         #     self.current_twist.angular.z = 0.0
         # # self.vel_publisher.publish(self.current_twist)
         if goal_distance > self.max_velocity/10.0:
             # self.current_twist.angular.z = 0.0
-            self.current_twist.linear = Vector3(x = self.max_velocity*math.cos(goal_theta), y = self.max_velocity*math.sin(goal_theta), z = 0.0)
+            self.current_twist.linear = Vector3(x = self.max_velocity*math.cos(self.goal_theta), y = self.max_velocity*math.sin(self.goal_theta), z = 0.0)
         else:
             self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
         self.vel_publisher.publish(self.current_twist)
+        self.odom_pub.publish(self.twist_to_odom(self.current_twist))
     
-    def tilt_callback(self,request,response):
-        # publish to joint state publisher
-        return response
+    # def tilt_callback(self,request,response):
+    #     tilt_angle = request.angle
+    #     return response
 
 def main(args=None):
     rclpy.init(args=args)

@@ -9,6 +9,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 from turtlesim.msg import Pose
 from geometry_msgs.msg import Point
 from builtin_interfaces.msg import Duration
+from turtle_brick_interfaces.msg import Tilt
 
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
@@ -16,6 +17,7 @@ from tf2_ros.transform_listener import TransformListener
 class State(Enum):
     CHILLING = auto()
     BRICK_FALLING = auto()
+    CAUGHT = auto()
 
 class Catcher(Node):
 
@@ -35,13 +37,14 @@ class Catcher(Node):
         self.reachable = None
         self.goal_pub = self.create_publisher(Point, "goal_message",1)
         # assert all values greater than 0
-
+        self.t_req = 0.0
         self.prev_brick_z1 = None
         self.prev_brick_z2 = None
         self.current = Point(x=0.0,y=0.0,z=self.platform_height)
         self.current_pos = Pose(x=0.0,y=0.0,theta=0.0,linear_velocity=0.0,angular_velocity=0.0)
         self.pos_or_subscriber = self.create_subscription(Pose, "turtle1/pose", self.pos_or_callback, 10)
         self.reachable_pub = self.create_publisher(Marker, "/text_marker", 10)
+        self.tilt_pub = self.create_publisher(Tilt, "tilt", 5)
 
         self.text_reachable = Marker(type=9)
 
@@ -71,7 +74,9 @@ class Catcher(Node):
                             self.prev_brick_z2 = None
                 else:
                     self.prev_brick_z1 = self.world_brick.transform.translation.z
-        print(self.prev_brick_z1, self.prev_brick_z2, self.world_brick.transform.translation.z)
+            if self.state == State.CAUGHT:
+                pass
+        # print(self.prev_brick_z1, self.prev_brick_z2, self.world_brick.transform.translation.z)
         if self.state == State.BRICK_FALLING:
             self.check_goal()
         return
@@ -80,14 +85,14 @@ class Catcher(Node):
         goal = self.world_brick.transform.translation
         height_goal = goal.z - self.platform_height
         if height_goal >= 0:
-            t_req = math.sqrt(2*(goal.z-self.platform_height)/self.g)
+            self.t_req = math.sqrt(2*(goal.z-self.platform_height)/self.g)
         else:
-            t_req = 0.0
+            self.t_req = 0.0
         distance_goal = math.sqrt((goal.y-self.current_pos.y)**2+(goal.x-self.current_pos.x)**2)
-        if distance_goal/self.max_velocity <= t_req and height_goal >= .5*self.g*t_req**2 and self.state == State.BRICK_FALLING:
+        if distance_goal/self.max_velocity <= self.t_req and height_goal >= .5*self.g*self.t_req**2 and self.state == State.BRICK_FALLING:
             self.reachable = True
             self.goal_pub.publish(Point(x=goal.x,y=goal.y,z=goal.z))
-            self.state = State.CHILLING
+            self.state = State.CAUGHT
         else:
             self.reachable = False
         if self.reachable == False:
@@ -104,6 +109,7 @@ class Catcher(Node):
         if distance_goal <= self.max_velocity/10.0:
             self.prev_brick_z1 = None
             self.prev_brick_z2 = None
+        print(height_goal)
         return
     
     def pos_or_callback(self,msg):

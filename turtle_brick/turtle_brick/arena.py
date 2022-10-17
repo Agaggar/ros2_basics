@@ -134,9 +134,9 @@ class Arena(Node):
         self.marker_brick.color.g = 31.0/255.0
         self.marker_brick.color.b = 39.0/255.0
         self.marker_brick.action = 0
-        self.marker_brick.scale.x = 1.0
-        self.marker_brick.scale.y = 2.0
-        self.marker_brick.scale.z = 1.0
+        self.marker_brick.scale.x = 2.0*self.wheel_radius
+        self.marker_brick.scale.y = 2.0*self.marker_brick.scale.x
+        self.marker_brick.scale.z = self.marker_brick.scale.x
         self.marker_brick.pose.position.x = request.brick_x
         self.marker_brick.pose.position.y = request.brick_y
         self.marker_brick.pose.position.z = request.brick_z

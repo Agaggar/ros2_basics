@@ -145,14 +145,6 @@ class Arena(Node):
                 if (abs(self.odom_brick.transform.translation.x) <= self.max_velocity/10.0) and (
                         abs(self.odom_brick.transform.translation.y) <= self.max_velocity/10.0):
                     self.state = State.BACK_TO_HOME
-            # self.marker_brick.pose.position.x = 0.0
-            # self.marker_brick.pose.position.y = 0.0
-            # self.marker_brick.pose.position.z = self.marker_brick.scale.z/2.0 + self.wheel_radius/2.0
-            # self.marker_brick.header.frame_id = "platform_tilt"
-            # self.marker_brick.header.stamp = self.get_clock().now().to_msg()
-            # # self.brick_slide()
-            pass
-        print(self.state)
         if self.state == State.BACK_TO_HOME:
             if self.js.position[2] == float(0.0):
                 self.js.position[2] = self.tilt_default

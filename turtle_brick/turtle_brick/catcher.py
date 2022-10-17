@@ -58,6 +58,7 @@ class Catcher(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self)    
 
     def timer_callback(self):
+        print(self.state)
         try:
             self.world_brick = self.tf_buffer.lookup_transform(
                 "world", "brick", rclpy.time.Time())
@@ -65,7 +66,6 @@ class Catcher(Node):
             # print("not published yet")
             return
         if self.world_brick:
-            # print(self.world_brick.transform.translation.z)
             if self.prev_brick_z1 is None:
                 self.prev_brick_z1 = self.world_brick.transform.translation.z
             else:
@@ -73,7 +73,9 @@ class Catcher(Node):
                     if self.prev_brick_z2 is None:
                         self.prev_brick_z2 = self.world_brick.transform.translation.z
                     else:
-                        if (self.prev_brick_z2 - self.world_brick.transform.translation.z) > 0.0:
+                        if (self.prev_brick_z2 - self.world_brick.transform.translation.z) > 0.0:                        
+                            # if self.text_count == 1:
+                            #     self.text_count == 0
                             self.state = State.BRICK_FALLING
                         else:
                             self.prev_brick_z1 = self.world_brick.transform.translation.z
@@ -94,14 +96,14 @@ class Catcher(Node):
                             self.odom_brick.transform.translation.y <= self.max_velocity/10.0):
                         self.tilt_pub.publish(Tilt(angle=self.theta_tilt_default))
                     if abs(self.odom_brick.transform.translation.z - self.goal_initial.z) <= 0.01:
-                        # self.goal_pub.publish(self.goal_initial)
                         self.state = State.CHILLING
-        # print(self.prev_brick_z1, self.prev_brick_z2, self.world_brick.transform.translation.z)
+        print(self.prev_brick_z1, self.prev_brick_z2, self.world_brick.transform.translation.z)
         if self.state == State.BRICK_FALLING:
             self.check_goal()
         return
     
     def check_goal(self):
+        print(self.text_count)
         goal = self.world_brick.transform.translation
         height_goal = goal.z - self.platform_height
         if height_goal >= 0:
@@ -151,6 +153,8 @@ class Catcher(Node):
 
     def place_callback(self, request, response):
         self.brick_place_initial = Point(x=request.brick_x, y=request.brick_y, z=request.brick_z)
+        self.text_count = 0
+        print('hello')
         return response
 
 

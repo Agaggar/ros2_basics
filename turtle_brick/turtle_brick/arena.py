@@ -26,6 +26,7 @@ class State(Enum):
     PLACE_BRICK = auto()
     DROP_BRICK = auto()
     BRICK_PLATFORM = auto()
+    BACK_TO_HOME = auto()
     TILTING_OFF = auto()
     TILT_ORIGINAL = auto()
 
@@ -89,29 +90,35 @@ class Arena(Node):
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
+        self.js = JointState()
+        self.js.header.stamp = self.get_clock().now().to_msg()
+        self.js.name = ['wheel_stem','stem_base','base_platform_fixed','platform_x']
+        # if self.state == State.TILTING_OFF:
+        self.js.position = [float(0.0), float(0.0),float(0.0), float(0.0)]        
+
     def timer_callback(self):
         if (self.count%25) == 0:
             self.marker_pub.publish(self.marker_walls_border)
         if self.state != State.RUNNING:
-            self.odom_brick = TransformStamped()
-            self.odom_brick.header.stamp = self.get_clock().now().to_msg()
-            self.odom_brick.header.frame_id = "world"
-            self.odom_brick.child_frame_id = "brick"
-            self.odom_brick.transform.translation.x = self.marker_brick.pose.position.x
-            self.odom_brick.transform.translation.y = self.marker_brick.pose.position.y
-            self.odom_brick.transform.translation.z = self.marker_brick.pose.position.z
-            self.broadcaster.sendTransform(self.odom_brick)
-        
-        try:
-            self.platform_brick = self.tf_buffer.lookup_transform(
-                "platform_tilt", "brick", rclpy.time.Time())
-        except:
-            # print("not published yet")
-            return
-            
-        if self.state != State.RUNNING:
+            self.world_brick = TransformStamped()
+            self.world_brick.header.stamp = self.get_clock().now().to_msg()
+            self.world_brick.header.frame_id = "world"
+            self.world_brick.child_frame_id = "brick"
+            self.world_brick.transform.translation.x = self.marker_brick.pose.position.x
+            self.world_brick.transform.translation.y = self.marker_brick.pose.position.y
+            self.world_brick.transform.translation.z = self.marker_brick.pose.position.z
+            self.broadcaster.sendTransform(self.world_brick)
             self.brick_pub.publish(self.marker_brick)
+            print(self.js.position)
+            self.joint_state_pub.publish(self.js)
+        
         if self.state == State.DROP_BRICK:
+            try:
+                self.platform_brick = self.tf_buffer.lookup_transform(
+                    "platform_tilt", "brick", rclpy.time.Time())
+            except:
+                # print("not published yet")
+                return
             self.time = self.time + 1/self.frequency
             self.marker_brick.pose.position.z = self.brick_z_initial - 0.5*self.g*self.time**2
             # NOTE THAT THE BRICK WILL GO TO PLATFORM EVEN IF IT STARTS BELOW THE PLATFORM, SINCE CATCHER ISN'T COMMUNICATING CATCHABILITY 
@@ -127,25 +134,15 @@ class Arena(Node):
             self.marker_brick.pose.position.y = self.current_pos.y
             self.marker_brick.pose.position.z = self.platform_height + self.marker_brick.scale.z/2.0 + self.wheel_radius/2.0
             try:
-                    self.odom_brick = self.tf_buffer.lookup_transform(
-                        "odom", "brick", rclpy.time.Time())
+                self.odom_brick = self.tf_buffer.lookup_transform(
+                    "odom", "brick", rclpy.time.Time())
             except:
-                # print("not published yet")
+                print("not published yet")
                 return
             if self.odom_brick:
-                if (self.odom_brick.transform.translation.x <= self.max_velocity/10.0) and (
-                        self.odom_brick.transform.translation.y <= self.max_velocity/10.0):
-                    js = JointState()
-                    # self.state = State.TILTING_OFF
-                    js.header.stamp = self.get_clock().now().to_msg()
-                    js.name = ['wheel_stem','stem_base','base_platform_fixed','platform_x']
-                    # if self.state == State.TILTING_OFF:
-                    js.position = [float(0.0), float(0.0),float(0.0), float(self.tilt_default)]
-                    if self.state == State.TILT_ORIGINAL:
-                        js.position = [float(0.0), float(0.0),float(0.0),-1*self.tilt_default]
-                    self.joint_state_pub.publish(js)
-                    # self.tilt_pub.publish(self.theta_tilt_default)
-                    pass
+                if (abs(self.odom_brick.transform.translation.x) <= self.max_velocity/10.0) and (
+                        abs(self.odom_brick.transform.translation.y) <= self.max_velocity/10.0):
+                    self.state = State.BACK_TO_HOME
             # self.marker_brick.pose.position.x = 0.0
             # self.marker_brick.pose.position.y = 0.0
             # self.marker_brick.pose.position.z = self.marker_brick.scale.z/2.0 + self.wheel_radius/2.0
@@ -153,6 +150,16 @@ class Arena(Node):
             # self.marker_brick.header.stamp = self.get_clock().now().to_msg()
             # # self.brick_slide()
             pass
+        if self.state == State.BACK_TO_HOME:
+            if self.js.position[3] == float(0.0):
+                self.js.position[3] = self.tilt_default
+                self.state = State.TILTING_OFF
+            # else:
+            #     self.js.position[3] = float(0.0)
+            #     self.state = State.TILT_ORIGINAL
+        if self.state == State.TILTING_OFF:
+            # self.marker_brick.tra
+            self.tilt_brick()
         self.count +=1
 
     def place_callback(self, request, response):
@@ -195,6 +202,10 @@ class Arena(Node):
     
     def tilt_callback(self, msg):
         self.tilt_default = msg.angle
+        return
+    
+    def tilt_brick(self):
+        
         return
 
 def main(args=None):

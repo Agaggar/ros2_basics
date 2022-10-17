@@ -159,6 +159,7 @@ class Arena(Node):
             self.js.position[2] = 0.0
             self.tilt_brick()
         self.count +=1
+        print(self.state)
 
     def place_callback(self, request, response):
         self.state = State.PLACE_BRICK

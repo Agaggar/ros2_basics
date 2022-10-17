@@ -1,5 +1,6 @@
 from turtle import Turtle, position, reset
 import rclpy, math
+import rclpy.time
 from rclpy.node import Node
 from rcl_interfaces.msg import ParameterDescriptor
 from std_srvs.srv import Empty
@@ -16,12 +17,15 @@ from .quaternion import angle_axis_to_quaternion
 
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
 from sensor_msgs.msg import JointState
 
 class State(Enum):
     MOVING = auto()
     STOPPED = auto()
     CAUGHT = auto()
+    WAITING = auto()
     TILT = auto()
 
 class TurtleRobot(Node):
@@ -71,9 +75,11 @@ class TurtleRobot(Node):
         world_base_tf.transform.translation.z = 0.0
         self.static_broadcaster.sendTransform(world_base_tf)
 
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+
         self.js = JointState()
         self.js.name = ['wheel_stem','stem_base','platform_x']
-        self.js.position = [float(0.0), float(0.0), float(0.0)]
         self.tmr = self.create_timer(1/100.0, self.timer_callback)
 
     def twist_to_odom(self, conv_twist):
@@ -100,11 +106,24 @@ class TurtleRobot(Node):
             self.vel_publisher.publish(self.current_twist)
         if self.state == State.MOVING:
             self.move(self.goal)
+        if self.state == State.WAITING:
+            try:
+                self.platform_brick = self.tf_buffer.lookup_transform(
+                    "platform_tilt", "brick", rclpy.time.Time())
+            except:
+                # print("not published yet")
+                return
+            if self.platform_brick:
+                if self.platform_brick.transform.translation.z <= self.wheel_radius*3:
+                    self.state = State.CAUGHT
         if self.state == State.CAUGHT:
             self.back_to_center()
         if self.state == State.TILT:
             self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
-            self.vel_publisher.publish(self.current_twist)            
+            self.vel_publisher.publish(self.current_twist)
+
+        self.vel_publisher.publish(self.current_twist)
+        self.odom_pub.publish(self.twist_to_odom(self.current_twist))        
     
     def pos_or_callback(self, msg):
         """Called by self.pos_or_subscriber
@@ -116,7 +135,7 @@ class TurtleRobot(Node):
         self.current_pos = msg
     
     def goal_move_callback(self, msg):
-        if msg != None:
+        if msg != None and self.state == State.STOPPED:
             self.state = State.MOVING
         self.goal = msg
         return
@@ -124,13 +143,12 @@ class TurtleRobot(Node):
     def move(self, goal):
         self.goal_theta = math.atan2((goal.y-self.current_pos.y), (goal.x-self.current_pos.x))
         goal_distance = math.sqrt((goal.y-self.current_pos.y)**2+(goal.x-self.current_pos.x)**2)
-        if goal_distance > self.max_velocity/10.0:
-            self.current_twist.linear = Vector3(x = self.max_velocity*math.cos(self.goal_theta), y = self.max_velocity*math.sin(self.goal_theta), z = 0.0)
         if goal_distance <= self.max_velocity/10.0:
             self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
-            self.state = State.CAUGHT
-        self.vel_publisher.publish(self.current_twist)
-        self.odom_pub.publish(self.twist_to_odom(self.current_twist))
+            self.state = State.WAITING
+        elif goal_distance > self.max_velocity/10.0:
+            self.current_twist.linear = Vector3(x = self.max_velocity*math.cos(self.goal_theta), y = self.max_velocity*math.sin(self.goal_theta), z = 0.0)
+            self.state = State.MOVING
         # print(goal.y-self.current_pos.y)
 
     def tilt_callback(self,request,response):
@@ -151,6 +169,12 @@ class TurtleRobot(Node):
         self.vel_publisher.publish(self.current_twist)
         self.odom_pub.publish(self.twist_to_odom(self.current_twist))
 
+    def js_callback(self, msg):
+        self.js.position = [float(0.0), float(0.0), float(0.0)]
+        if self.state != State.BACK_TO_HOME and self.state != State.TILT_ORIGINAL and self.state != State.TILTING_OFF:
+            self.js.position = msg.position
+        return
+        
 def main(args=None):
     rclpy.init(args=args)
     node = TurtleRobot()

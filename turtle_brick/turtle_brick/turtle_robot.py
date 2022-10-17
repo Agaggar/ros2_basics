@@ -50,6 +50,7 @@ class TurtleRobot(Node):
         self.state = State.STOPPED
         self.goal = Point(x=0.0,y=0.0,z=0.0)
         self.goal_theta = 0.0
+        self.tilt_angle = math.pi/6
 
         self.declare_parameter("gravity", 9.8, ParameterDescriptor(description="Accel due to gravity, 9.8 by default."))
         self.declare_parameter("wheel_radius", 0.5, ParameterDescriptor(description="Wheel radius"))
@@ -71,7 +72,7 @@ class TurtleRobot(Node):
 
         # Create a timer to do the rest of the transforms
         self.tmr = self.create_timer(1/100.0, self.timer_callback)
-    
+
     def twist_to_odom(self, conv_twist):
         head = Header()
         head.stamp = self.get_clock().now().to_msg()
@@ -83,7 +84,7 @@ class TurtleRobot(Node):
         twis.twist = conv_twist
         return Odometry(header=head,child_frame_id="base_link", pose=pos, twist=twis)
 
-    def timer_callback(self): 
+    def timer_callback(self):
         self.odom_base = TransformStamped()
         self.odom_base.header.frame_id = "odom"
         self.odom_base.child_frame_id = "base_link"
@@ -92,16 +93,15 @@ class TurtleRobot(Node):
         self.odom_base.transform.translation.y = self.current_pos.y - self.spawn_pos.y
         self.broadcaster.sendTransform(self.odom_base)
 
-        if self.state == State.MOVING:
-            self.move(self.goal)
         if self.state == State.STOPPED:
             self.vel_publisher.publish(self.current_twist)
+        if self.state == State.MOVING:
+            self.move(self.goal)
         if self.state == State.CAUGHT:
             self.back_to_center()
         if self.state == State.TILT:
             self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
-            self.vel_publisher.publish(self.current_twist)
-            
+            self.vel_publisher.publish(self.current_twist)            
     
     def pos_or_callback(self, msg):
         """Called by self.pos_or_subscriber
@@ -129,26 +129,24 @@ class TurtleRobot(Node):
         self.vel_publisher.publish(self.current_twist)
         self.odom_pub.publish(self.twist_to_odom(self.current_twist))
         # print(goal.y-self.current_pos.y)
+
+    def tilt_callback(self,request,response):
+        self.tilt_angle = request.angle
+        return response
     
     def back_to_center(self):
-        self.goal_theta = pi + self.goal_theta
         goal = Point(x=self.spawn_pos.x, y=self.spawn_pos.y, z=0.0)
+        self.goal_theta = math.atan2((goal.y-self.current_pos.y), (goal.x-self.current_pos.x))
         # print(goal.y-self.current_pos.y)
         goal_distance = math.sqrt((goal.y-self.current_pos.y)**2+(goal.x-self.current_pos.x)**2)
         if goal_distance > self.max_velocity/10.0:
             # self.current_twist.angular.z = 0.0
             self.current_twist.linear = Vector3(x = self.max_velocity*math.cos(self.goal_theta), y = self.max_velocity*math.sin(self.goal_theta), z = 0.0)
-        else:
+        if goal_distance <= self.max_velocity/10.0:
             self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
             self.state = State.TILT
         self.vel_publisher.publish(self.current_twist)
         self.odom_pub.publish(self.twist_to_odom(self.current_twist))
-        
-        return
-
-    def tilt_callback(self,request,response):
-        tilt_angle = request.angle
-        return response
 
 def main(args=None):
     rclpy.init(args=args)

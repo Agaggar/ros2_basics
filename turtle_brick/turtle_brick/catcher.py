@@ -18,6 +18,7 @@ class State(Enum):
     CHILLING = auto()
     BRICK_FALLING = auto()
     CAUGHT = auto()
+    UNCATCHABLE = auto()
 
 class Catcher(Node):
 
@@ -34,9 +35,9 @@ class Catcher(Node):
         self.wheel_radius = self.get_parameter("wheel_radius").get_parameter_value().double_value
         self.platform_height = self.get_parameter("platform_height").get_parameter_value().double_value
         self.max_velocity = self.get_parameter("max_velocity").get_parameter_value().double_value
-        self.reachable = None
         self.goal_pub = self.create_publisher(Point, "goal_message",1)
         # assert all values greater than 0
+        self.goal = None
         self.t_req = 0.0
         self.prev_brick_z1 = None
         self.prev_brick_z2 = None
@@ -45,6 +46,7 @@ class Catcher(Node):
         self.pos_or_subscriber = self.create_subscription(Pose, "turtle1/pose", self.pos_or_callback, 10)
         self.reachable_pub = self.create_publisher(Marker, "/text_marker", 10)
         self.tilt_pub = self.create_publisher(Tilt, "tilt", 5)
+        self.theta_tilt_default = math.pi/6
 
         self.text_reachable = Marker(type=9)
 
@@ -75,7 +77,16 @@ class Catcher(Node):
                 else:
                     self.prev_brick_z1 = self.world_brick.transform.translation.z
             if self.state == State.CAUGHT:
-                pass
+                try:
+                    self.odom_brick = self.tf_buffer.lookup_transform(
+                        "odom", "brick", rclpy.time.Time())
+                except:
+                    # print("not published yet")
+                    return
+                if self.odom_brick:
+                    if (self.odom_brick.transform.translation.x <= self.max_velocity/10.0) and (
+                            self.odom_brick.transform.translation.y <= self.max_velocity/10.0):
+                        self.tilt_pub.publish(Tilt(angle=self.theta_tilt_default))
         # print(self.prev_brick_z1, self.prev_brick_z2, self.world_brick.transform.translation.z)
         if self.state == State.BRICK_FALLING:
             self.check_goal()
@@ -89,14 +100,15 @@ class Catcher(Node):
         else:
             self.t_req = 0.0
         distance_goal = math.sqrt((goal.y-self.current_pos.y)**2+(goal.x-self.current_pos.x)**2)
-        if distance_goal/self.max_velocity <= self.t_req and height_goal >= .5*self.g*self.t_req**2 and self.state == State.BRICK_FALLING:
+        if distance_goal/self.max_velocity <= self.t_req and self.state == State.BRICK_FALLING:
             self.reachable = True
-            self.goal_pub.publish(Point(x=goal.x,y=goal.y,z=goal.z))
+            self.goal = Point(x=goal.x,y=goal.y,z=goal.z)
+            self.goal_pub.publish(self.goal)
             # if height_goal <= (1.5*self.wheel_radius + 0.05): # distance between origins
             #     self.state = State.CAUGHT
         else:
-            self.reachable = False
-        if self.reachable == False:
+            self.state = State.UNCATCHABLE
+        if self.state == State.UNCATCHABLE:
             self.text_reachable.header.frame_id = "platform_tilt"
             self.text_reachable.header.stamp = self.get_clock().now().to_msg()
             self.text_reachable.action = 0

@@ -5,7 +5,7 @@ import rclpy.time
 from rcl_interfaces.msg import ParameterDescriptor
 from std_srvs.srv import Empty
 from enum import Enum, auto
-from visualization_msgs.msg import Marker, MarkerArray
+from visualization_msgs.msg import Marker
 from turtlesim.msg import Pose
 from geometry_msgs.msg import Point
 from builtin_interfaces.msg import Duration
@@ -35,14 +35,14 @@ class Catcher(Node):
         self.wheel_radius = self.get_parameter("wheel_radius").get_parameter_value().double_value
         self.platform_height = self.get_parameter("platform_height").get_parameter_value().double_value
         self.max_velocity = self.get_parameter("max_velocity").get_parameter_value().double_value
-        self.goal_pub = self.create_publisher(Point, "goal_message",1)
+        self.goal_pub = self.create_publisher(Point, "goal_message", 1)
         # assert all values greater than 0
         self.goal = None
         self.t_req = 0.0
         self.prev_brick_z1 = None
         self.prev_brick_z2 = None
-        self.current = Point(x=0.0,y=0.0,z=self.platform_height)
-        self.current_pos = Pose(x=0.0,y=0.0,theta=0.0,linear_velocity=0.0,angular_velocity=0.0)
+        self.current = Point(x=0.0, y=0.0, z=self.platform_height)
+        self.current_pos = Pose(x=0.0, y=0.0, theta=0.0, linear_velocity=0.0, angular_velocity=0.0)
         self.pos_or_subscriber = self.create_subscription(Pose, "turtle1/pose", self.pos_or_callback, 10)
         self.reachable_pub = self.create_publisher(Marker, "/text_marker", 10)
         self.tilt_pub = self.create_publisher(Tilt, "tilt", 5)
@@ -62,11 +62,11 @@ class Catcher(Node):
             return
         if self.world_brick:
             # print(self.world_brick.transform.translation.z)
-            if self.prev_brick_z1 == None:
+            if self.prev_brick_z1 is None:
                 self.prev_brick_z1 = self.world_brick.transform.translation.z
             else:
                 if (self.prev_brick_z1 - self.world_brick.transform.translation.z) > 0.0:
-                    if self.prev_brick_z2 == None:
+                    if self.prev_brick_z2 is None:
                         self.prev_brick_z2 = self.world_brick.transform.translation.z
                     else:
                         if (self.prev_brick_z2 - self.world_brick.transform.translation.z) > 0.0:
@@ -81,7 +81,7 @@ class Catcher(Node):
                     self.odom_brick = self.tf_buffer.lookup_transform(
                         "odom", "brick", rclpy.time.Time())
                 except:
-                    # print("not published yet")
+                    print("not published yet")
                     return
                 if self.odom_brick:
                     if (self.odom_brick.transform.translation.x <= self.max_velocity/10.0) and (
@@ -102,7 +102,7 @@ class Catcher(Node):
         distance_goal = math.sqrt((goal.y-self.current_pos.y)**2+(goal.x-self.current_pos.x)**2)
         if distance_goal/self.max_velocity <= self.t_req and self.state == State.BRICK_FALLING:
             self.reachable = True
-            self.goal = Point(x=goal.x,y=goal.y,z=goal.z)
+            self.goal = Point(x=goal.x, y=goal.y, z=goal.z)
             self.goal_pub.publish(self.goal)
             # if height_goal <= (1.5*self.wheel_radius + 0.05): # distance between origins
             #     self.state = State.CAUGHT
@@ -116,7 +116,7 @@ class Catcher(Node):
             self.text_reachable.id = 10
             self.text_reachable.pose.position.z = self.wheel_radius
             self.text_reachable.text = "Unreachable"
-            self.text_reachable.lifetime = Duration(sec=3,nanosec=0)
+            self.text_reachable.lifetime = Duration(sec=3, nanosec=0)
             self.text_reachable.color.a = 1.0
             self.reachable_pub.publish(self.text_reachable)
         if distance_goal <= self.max_velocity/10.0:
@@ -124,8 +124,8 @@ class Catcher(Node):
             self.prev_brick_z1 = None
             self.prev_brick_z2 = None
         return
-    
-    def pos_or_callback(self,msg):
+
+    def pos_or_callback(self, msg):
         """Called by self.pos_or_subscriber
         Subscribes to pose, and updates current point (x,y) with pose (x,y)
         """
@@ -139,6 +139,7 @@ def main(args=None):
     node = Catcher()
     rclpy.spin(node)
     rclpy.shutdown()
+
 
 if __name__ == "__main__":
     main()

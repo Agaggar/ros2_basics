@@ -16,6 +16,7 @@ from .quaternion import angle_axis_to_quaternion
 
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
+from sensor_msgs.msg import JointState
 
 class State(Enum):
     MOVING = auto()
@@ -70,7 +71,9 @@ class TurtleRobot(Node):
         world_base_tf.transform.translation.z = 0.0
         self.static_broadcaster.sendTransform(world_base_tf)
 
-        # Create a timer to do the rest of the transforms
+        self.js = JointState()
+        self.js.name = ['wheel_stem','stem_base','platform_x']
+        self.js.position = [float(0.0), float(0.0), float(0.0)]
         self.tmr = self.create_timer(1/100.0, self.timer_callback)
 
     def twist_to_odom(self, conv_twist):

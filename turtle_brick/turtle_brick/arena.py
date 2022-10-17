@@ -9,17 +9,16 @@ from std_srvs.srv import Empty
 from enum import Enum, auto
 from turtle_brick_interfaces.srv import Place
 from turtle_brick_interfaces.msg import Tilt
-from turtlesim.srv import TeleportAbsolute, SetPen
 from turtlesim.msg import Pose
 from geometry_msgs.msg import Point
-from geometry_msgs.msg import Twist, Vector3, TransformStamped, Quaternion
-from sensor_msgs.msg import JointState
-from visualization_msgs.msg import Marker, MarkerArray
-from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
+from geometry_msgs.msg import TransformStamped
+from visualization_msgs.msg import Marker
 from tf2_ros import TransformBroadcaster
 
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
+from sensor_msgs.msg import JointState
+from .quaternion import angle_axis_to_quaternion
 
 class State(Enum):
     RUNNING = auto()
@@ -39,6 +38,7 @@ class Arena(Node):
         self.marker_pub = self.create_publisher(Marker, "wall_marker", 10)
         self.brick_pub = self.create_publisher(Marker, "brick_marker", 10)
         self.joint_state_pub = self.create_publisher(JointState, "joint_states", 10)
+        self.joint_state_sub = self.create_subscription(JointState,"joint_states", self.js_callback, 10)
         
         self.brick_place = self.create_service(Place, "brick_place", self.place_callback)
         # self.brick_place_client = self.create_client(Place, "brick_place")
@@ -91,10 +91,8 @@ class Arena(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
         self.js = JointState()
-        self.js.header.stamp = self.get_clock().now().to_msg()
-        self.js.name = ['wheel_stem','stem_base','base_platform_fixed','platform_x']
-        # if self.state == State.TILTING_OFF:
-        self.js.position = [float(0.0), float(0.0),float(0.0), float(0.0)]        
+        self.js.name = ['wheel_stem','stem_base','platform_x']
+        self.js.position = [float(0.0), float(0.0), float(0.0)]
 
     def timer_callback(self):
         if (self.count%25) == 0:
@@ -108,8 +106,8 @@ class Arena(Node):
             self.world_brick.transform.translation.y = self.marker_brick.pose.position.y
             self.world_brick.transform.translation.z = self.marker_brick.pose.position.z
             self.broadcaster.sendTransform(self.world_brick)
-            self.brick_pub.publish(self.marker_brick)
-            print(self.js.position)
+            self.brick_pub.publish(self.marker_brick)        
+            self.js.header.stamp = self.get_clock().now().to_msg()
             self.joint_state_pub.publish(self.js)
         
         if self.state == State.DROP_BRICK:
@@ -125,6 +123,7 @@ class Arena(Node):
             if ((self.marker_brick.pose.position.z - self.marker_brick.scale.z/2.0) <= self.platform_height) and (
                     self.platform_brick.transform.translation.x <= self.wheel_radius*5) and (
                     self.platform_brick.transform.translation.y <= self.wheel_radius*5):
+                self.time = 0.0
                 self.state = State.BRICK_PLATFORM
             if self.marker_brick.pose.position.z <= self.marker_brick.scale.z/2.0:
                 self.state = State.RUNNING
@@ -151,14 +150,13 @@ class Arena(Node):
             # # self.brick_slide()
             pass
         if self.state == State.BACK_TO_HOME:
-            if self.js.position[3] == float(0.0):
-                self.js.position[3] = self.tilt_default
+            if self.js.position[2] == float(0.0):
+                self.js.position[2] = self.tilt_default
                 self.state = State.TILTING_OFF
-            # else:
-            #     self.js.position[3] = float(0.0)
-            #     self.state = State.TILT_ORIGINAL
         if self.state == State.TILTING_OFF:
-            # self.marker_brick.tra
+            self.tilt_brick()
+        if self.state == State.TILT_ORIGINAL:
+            self.js.position[2] = 0.0
             self.tilt_brick()
         self.count +=1
 
@@ -203,9 +201,30 @@ class Arena(Node):
     def tilt_callback(self, msg):
         self.tilt_default = msg.angle
         return
-    
+
+    def js_callback(self, msg):
+        if self.state != State.BACK_TO_HOME and self.state != State.TILT_ORIGINAL and self.state != State.TILTING_OFF:
+            self.js.position = msg.position
+        return
+
     def tilt_brick(self):
-        
+        t_req = math.sqrt(5*self.wheel_radius*2.0/self.g/math.sin(self.tilt_default))
+        print(self.time)
+        if self.state == State.TILTING_OFF:
+            self.time += 1/self.frequency
+            self.world_brick.transform.rotation = angle_axis_to_quaternion(self.tilt_default, [1.0, 0, 0])
+            self.marker_brick.pose.position.y = self.world_brick.transform.translation.y - 0.5*self.g*math.sin(self.tilt_default)*self.time**2
+            # self.marker_brick.pose.position.z = self.world_brick.transform.translation.z - 0.5*self.g*math.cos(self.tilt_default)*self.time**2
+            # z_height = self.marker_brick.pose.position.z
+            print(self.marker_brick.pose.position.y, self.marker_brick.pose.position.z)
+            if self.time >= t_req:
+                self.state = State.TILT_ORIGINAL
+        if self.state == State.TILT_ORIGINAL:
+            self.world_brick.transform.rotation = angle_axis_to_quaternion(-1*self.tilt_default, [1.0, 0, 0])
+            self.marker_brick.pose.position.z = (self.platform_height-5*self.wheel_radius*math.cos(self.tilt_default)) - (self.g*math.cos(self.tilt_default)*t_req) - 0.5*self.g*self.time**2
+            if self.marker_brick.pose.position.z <= self.marker_brick.scale.z/2.0:
+                self.state = State.RUNNING
+                self.brick_z_initial=0.0
         return
 
 def main(args=None):

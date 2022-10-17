@@ -3,6 +3,7 @@ from email.header import Header
 from turtle import Turtle, reset
 import rclpy, math
 from rclpy.node import Node
+import rclpy.time
 from rcl_interfaces.msg import ParameterDescriptor
 from std_srvs.srv import Empty
 from enum import Enum, auto
@@ -16,6 +17,9 @@ from builtin_interfaces.msg import Duration
 from visualization_msgs.msg import Marker, MarkerArray
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
+
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
 
 class State(Enum):
     RUNNING = auto()
@@ -75,6 +79,9 @@ class Arena(Node):
 
         self.marker_walls_border.points = self.points
 
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+
     def timer_callback(self):
         if (self.count%25) == 0:
             self.marker_pub.publish(self.marker_walls_border)
@@ -87,6 +94,13 @@ class Arena(Node):
             self.odom_brick.transform.translation.y = self.marker_brick.pose.position.y
             self.odom_brick.transform.translation.z = self.marker_brick.pose.position.z
             self.broadcaster.sendTransform(self.odom_brick)
+        
+        try:
+            self.platform_brick = self.tf_buffer.lookup_transform(
+                "platform_tilt", "brick", rclpy.time.Time())
+        except:
+            # print("not published yet")
+            return
             
         if self.state != State.RUNNING:
             self.brick_pub.publish(self.marker_brick)
@@ -94,7 +108,9 @@ class Arena(Node):
             self.time = self.time + 1/self.frequency
             self.marker_brick.pose.position.z = self.brick_z_initial - 0.5*self.g*self.time**2
             # NOTE THAT THE BRICK WILL GO TO PLATFORM EVEN IF IT STARTS BELOW THE PLATFORM, SINCE CATCHER ISN'T COMMUNICATING CATCHABILITY 
-            if ((self.marker_brick.pose.position.z - self.marker_brick.scale.z/2.0) <= self.platform_height):
+            if ((self.marker_brick.pose.position.z - self.marker_brick.scale.z/2.0) <= self.platform_height) and (
+                    self.platform_brick.transform.translation.x <= self.wheel_radius*5) and (
+                    self.platform_brick.transform.translation.y <= self.wheel_radius*5):
                 self.state = State.BRICK_PLATFORM
             if self.marker_brick.pose.position.z <= self.marker_brick.scale.z/2.0:
                 self.state = State.RUNNING

@@ -32,7 +32,7 @@ class Catcher(Node):
         self.wheel_radius = self.get_parameter("wheel_radius").get_parameter_value().double_value
         self.platform_height = self.get_parameter("platform_height").get_parameter_value().double_value
         self.max_velocity = self.get_parameter("max_velocity").get_parameter_value().double_value
-        self.reachable = False
+        self.reachable = None
         self.goal_pub = self.create_publisher(Point, "goal_message",1)
         # assert all values greater than 0
 
@@ -56,7 +56,7 @@ class Catcher(Node):
             # print("not published yet")
             return
         if self.world_brick:
-            print(self.world_brick.transform.translation.z)
+            # print(self.world_brick.transform.translation.z)
             if self.prev_brick_z1 == None:
                 self.prev_brick_z1 = self.world_brick.transform.translation.z
             else:
@@ -71,7 +71,7 @@ class Catcher(Node):
                             self.prev_brick_z2 = None
                 else:
                     self.prev_brick_z1 = self.world_brick.transform.translation.z
-        # print(self.prev_brick_z1, self.prev_brick_z2, self.world_brick.transform.translation.z)
+        print(self.prev_brick_z1, self.prev_brick_z2, self.world_brick.transform.translation.z)
         if self.state == State.BRICK_FALLING:
             self.check_goal()
         return
@@ -84,11 +84,13 @@ class Catcher(Node):
         else:
             t_req = 0.0
         distance_goal = math.sqrt((goal.y-self.current_pos.y)**2+(goal.x-self.current_pos.x)**2)
-        print(goal.x, goal.y, self.current_pos.x, self.current_pos.y, height_goal, distance_goal, t_req)
-        if distance_goal/self.max_velocity <= t_req and height_goal >= .5*self.g*t_req**2:
+        if distance_goal/self.max_velocity <= t_req and height_goal >= .5*self.g*t_req**2 and self.state == State.BRICK_FALLING:
             self.reachable = True
             self.goal_pub.publish(Point(x=goal.x,y=goal.y,z=goal.z))
-        else:    
+            self.state = State.CHILLING
+        else:
+            self.reachable = False
+        if self.reachable == False:
             self.text_reachable.header.frame_id = "platform_tilt"
             self.text_reachable.header.stamp = self.get_clock().now().to_msg()
             self.text_reachable.action = 0
@@ -99,6 +101,9 @@ class Catcher(Node):
             self.text_reachable.lifetime = Duration(sec=3,nanosec=0)
             self.text_reachable.color.a = 1.0
             self.reachable_pub.publish(self.text_reachable)
+        if distance_goal <= self.max_velocity/10.0:
+            self.prev_brick_z1 = None
+            self.prev_brick_z2 = None
         return
     
     def pos_or_callback(self,msg):

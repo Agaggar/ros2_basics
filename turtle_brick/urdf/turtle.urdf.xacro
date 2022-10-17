@@ -68,7 +68,7 @@
         <visual name="fixed_cyl">
             <origin xyz="0.0 0.0 ${2*wheel_radius + 2*cyl_length + 0.5*(platform_height-wheel_radius-2*wheel_radius-2*cyl_length)}"/>
             <geometry>
-                <cylinder radius="${wheel_radius*3}" length="${platform_height-wheel_radius-2*wheel_radius-2*cyl_length}"/>
+                <cylinder radius="${wheel_radius}" length="${platform_height-wheel_radius-2*wheel_radius-2*cyl_length}"/>
             </geometry>
             <material name="red">
                 <color rgba="1.0 0.0 0.0 1.0"/>

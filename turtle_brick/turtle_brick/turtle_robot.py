@@ -112,7 +112,8 @@ class TurtleRobot(Node):
     
     def move(self, goal):
         goal_theta = math.atan2((goal.y-self.current_pos.y), (goal.x-self.current_pos.x))
-        goal_distance = math.sqrt((goal.y-self.spawn_pos.y-self.current_pos.y)**2+(goal.x-self.spawn_pos.x-self.current_pos.x)**2)
+        goal_distance = math.sqrt((goal.y-self.current_pos.y)**2+(goal.x-self.current_pos.x)**2)
+        print(goal_distance, goal_theta)
         # if goal_theta >= 0.01:
         #     if(self.current_pos.theta - goal_theta) >= 0.01:
         #         self.current_twist.angular.z = 1.0
@@ -125,7 +126,7 @@ class TurtleRobot(Node):
         if goal_distance > self.max_velocity/10.0:
             # self.current_twist.angular.z = 0.0
             self.current_twist.linear = Vector3(x = self.max_velocity*math.cos(goal_theta), y = self.max_velocity*math.sin(goal_theta), z = 0.0)
-        if goal_distance <= 0.05/self.max_velocity/10.0:
+        else:
             self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
         self.vel_publisher.publish(self.current_twist)
     

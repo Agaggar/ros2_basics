@@ -1,15 +1,10 @@
-from turtle import Turtle, position, reset
-import rclpy, math
+import rclpy
+import math
 import rclpy.time
 from rclpy.node import Node
 from rcl_interfaces.msg import ParameterDescriptor
-from std_srvs.srv import Empty
 from enum import Enum, auto
-from turtlesim.srv import TeleportAbsolute, SetPen
 from turtlesim.msg import Pose
-from turtle_brick_interfaces.msg import Tilt
-import time
-from math import pi
 from geometry_msgs.msg import Twist, Vector3, TransformStamped, Point, PoseWithCovariance, TwistWithCovariance
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Header
@@ -27,6 +22,7 @@ class State(Enum):
     CAUGHT = auto()
     WAITING = auto()
     TILT = auto()
+
 
 class TurtleRobot(Node):
     """ Creates robot
@@ -50,7 +46,8 @@ class TurtleRobot(Node):
         self.joint_state_sub = self.create_subscription(JointState,"joint_states", self.js_callback, 10)
         self.joint_state_pub = self.create_publisher(JointState, "joint_states", 10)
         self.current_pos = Pose(x=0.0,y=0.0,theta=0.0,linear_velocity=0.0,angular_velocity=0.0)
-        self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
+        self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), 
+                                    angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
         # change spawn_pos to be a parameter that's passed in
         self.spawn_pos = Pose(x=5.5444, y=5.5444, theta=0.0, linear_velocity=0.0,angular_velocity=0.0)
         self.odom_bool = False
@@ -59,10 +56,14 @@ class TurtleRobot(Node):
         self.goal_theta = 0.0
         self.tilt_angle = math.pi/6
 
-        self.declare_parameter("gravity", 9.8, ParameterDescriptor(description="Accel due to gravity, 9.8 by default."))
-        self.declare_parameter("wheel_radius", 0.5, ParameterDescriptor(description="Wheel radius"))
-        self.declare_parameter("platform_height", 0.6, ParameterDescriptor(description="height of platform. MUST BE >=3.5*WHEEL_RADIUS"))
-        self.declare_parameter("max_velocity", 0.22, ParameterDescriptor(description="max linear velocity"))
+        self.declare_parameter("gravity", 9.8, ParameterDescriptor(
+            description="Accel due to gravity, 9.8 by default."))
+        self.declare_parameter("wheel_radius", 0.5, ParameterDescriptor(
+            description="Wheel radius"))
+        self.declare_parameter("platform_height", 0.6, ParameterDescriptor(
+            description="height of platform. MUST BE >=3.5*WHEEL_RADIUS"))
+        self.declare_parameter("max_velocity", 0.22, ParameterDescriptor(
+            description="max linear velocity"))
         self.g = self.get_parameter("gravity").get_parameter_value().double_value
         self.wheel_radius = self.get_parameter("wheel_radius").get_parameter_value().double_value
         self.platform_height = self.get_parameter("platform_height").get_parameter_value().double_value
@@ -81,7 +82,7 @@ class TurtleRobot(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
         self.js = JointState()
-        self.js.name = ['wheel_stem','stem_base','platform_x']
+        self.js.name = ['wheel_stem', 'stem_base', 'platform_x']
         self.js.position = [0.0, 0.0, 0.0]
         self.tmr = self.create_timer(1/100.0, self.timer_callback)
         self.time = 0.0
@@ -128,7 +129,7 @@ class TurtleRobot(Node):
 
         self.vel_publisher.publish(self.current_twist)
         self.odom_pub.publish(self.twist_to_odom(self.current_twist))        
-    
+
     def pos_or_callback(self, msg):
         """Called by self.pos_or_subscriber
         Subscribes to pose, and updates current with pose
@@ -137,28 +138,31 @@ class TurtleRobot(Node):
             self.spawn_pos = msg
             self.odom_bool = True
         self.current_pos = msg
-    
+
     def goal_move_callback(self, msg):
         if msg != None and self.state == State.STOPPED:
             self.state = State.MOVING
         self.goal = msg
         return
-    
+
     def move(self, goal):
         self.goal_theta = math.atan2((goal.y-self.current_pos.y), (goal.x-self.current_pos.x))
         goal_distance = math.sqrt((goal.y-self.current_pos.y)**2+(goal.x-self.current_pos.x)**2)
         if goal_distance <= self.max_velocity/10.0:
-            self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
+            self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), 
+                                        angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
             self.state = State.WAITING
         elif goal_distance > self.max_velocity/10.0:
-            self.current_twist.linear = Vector3(x = self.max_velocity*math.cos(self.goal_theta), y = self.max_velocity*math.sin(self.goal_theta), z = 0.0)
+            self.current_twist.linear = Vector3(x = self.max_velocity*math.cos(self.goal_theta), 
+                                                y = self.max_velocity*math.sin(self.goal_theta), 
+                                                z = 0.0)
             self.state = State.MOVING
         # print(goal.y-self.current_pos.y)
 
-    def tilt_callback(self,request,response):
+    def tilt_callback(self, request, response):
         self.tilt_angle = request.angle
         return response
-    
+
     def back_to_center(self):
         goal = Point(x=self.spawn_pos.x, y=self.spawn_pos.y, z=0.0)
         self.goal_theta = math.atan2((goal.y-self.current_pos.y), (goal.x-self.current_pos.x))
@@ -166,15 +170,19 @@ class TurtleRobot(Node):
         goal_distance = math.sqrt((goal.y-self.current_pos.y)**2+(goal.x-self.current_pos.x)**2)
         if goal_distance > self.max_velocity/10.0:
             # self.current_twist.angular.z = 0.0
-            self.current_twist.linear = Vector3(x = self.max_velocity*math.cos(self.goal_theta), y = self.max_velocity*math.sin(self.goal_theta), z = 0.0)
+            self.current_twist.linear = Vector3(x = self.max_velocity*math.cos(self.goal_theta), 
+                                                y = self.max_velocity*math.sin(self.goal_theta),
+                                                z = 0.0)
         if goal_distance <= self.max_velocity/10.0:
-            self.current_twist = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0), angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
+            self.current_twist = Twist(linear = Vector3(x=0.0, y=0.0, z=0.0), 
+                                        angular = Vector3(x=0.0, y=0.0, z=0.0))
             self.state = State.TILT
         self.vel_publisher.publish(self.current_twist)
         self.odom_pub.publish(self.twist_to_odom(self.current_twist))
 
     def js_callback(self, msg):
-        if self.state == State.STOPPED and self.state == State.WAITING and self.state == State.TILT:
+        if self.state == State.STOPPED and self.state == State.WAITING and (
+                self.state == State.TILT):
             self.js.position = msg.position
             self.js.position[0] = 0.0
             self.time = 0
@@ -184,12 +192,14 @@ class TurtleRobot(Node):
             self.joint_state_pub.publish(self.js)
             self.js.position[0] = self.max_velocity/self.wheel_radius*self.time
         return
-        
+
+
 def main(args=None):
     rclpy.init(args=args)
     node = TurtleRobot()
     rclpy.spin(node)
     rclpy.shutdown()
+
 
 if __name__ == "__main__":
     main()

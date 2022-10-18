@@ -1,9 +1,8 @@
-from time import sleep
-import rclpy, math
+import rclpy
+import math
 from rclpy.node import Node
 import rclpy.time
 from rcl_interfaces.msg import ParameterDescriptor
-from std_srvs.srv import Empty
 from enum import Enum, auto
 from visualization_msgs.msg import Marker
 from turtlesim.msg import Pose
@@ -11,7 +10,6 @@ from geometry_msgs.msg import Point
 from builtin_interfaces.msg import Duration
 from turtle_brick_interfaces.srv import Place
 from turtle_brick_interfaces.msg import Tilt
-
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 

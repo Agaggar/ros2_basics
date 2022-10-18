@@ -75,7 +75,6 @@ class Catcher(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
     def timer_callback(self):
-        print(self.state)
         try:
             self.world_brick = self.tf_buffer.lookup_transform(
                 "world", "brick", rclpy.time.Time())
@@ -120,14 +119,13 @@ class Catcher(Node):
                             self.odom_brick.transform.translation.z -
                             self.goal_initial.z) <= 0.01:
                         self.state = State.CHILLING
-        print(self.prev_brick_z1, self.prev_brick_z2,
-              self.world_brick.transform.translation.z)
+        # print(self.prev_brick_z1, self.prev_brick_z2,
+        #       self.world_brick.transform.translation.z)
         if self.state == State.BRICK_FALLING:
             self.check_goal()
         return
 
     def check_goal(self):
-        print(self.text_count)
         goal = self.world_brick.transform.translation
         height_goal = goal.z - self.platform_height
         if height_goal >= 0:
@@ -183,7 +181,7 @@ class Catcher(Node):
             y=request.brick_y,
             z=request.brick_z)
         self.text_count = 0
-        # self.prev_brick_z2 = None
+        self.prev_brick_z2 = None
         return response
 
 

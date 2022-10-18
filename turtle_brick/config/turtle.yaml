@@ -1,7 +1,7 @@
 /**:
   ros__parameters:
     wheel_radius: 0.25
-    platform_height: 4.0
+    platform_height: 3.0
     # assert that platform_height is >=7*wheel_radius
     max_velocity: 2.2
     gravity: 9.8 # m/s^2

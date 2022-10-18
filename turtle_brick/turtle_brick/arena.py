@@ -138,6 +138,7 @@ class Arena(Node):
         self.brick_place_initial = Point(x=0.0, y=0.0, z=0.0)
 
     def timer_callback(self):
+        print(self.max_velocity)
         if (self.count % 25) == 0:
             self.marker_pub.publish(self.marker_walls_border)
         if self.state != State.RUNNING:

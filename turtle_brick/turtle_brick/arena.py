@@ -1,3 +1,12 @@
+"""
+This file controls visuals of the arena walls and the brick.
+Publishers:
+
+Services:
+
+Parameters:
+"""
+
 import rclpy
 import math
 from rclpy.node import Node
@@ -12,13 +21,15 @@ from geometry_msgs.msg import Point
 from geometry_msgs.msg import TransformStamped
 from visualization_msgs.msg import Marker
 from tf2_ros import TransformBroadcaster
-
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 from sensor_msgs.msg import JointState
 
 
 class State(Enum):
+    """ Current state of the system.
+        Determines what timer and subfunctions should do in each state.
+    """
     RUNNING = auto()
     PLACE_BRICK = auto()
     DROP_BRICK = auto()
@@ -29,6 +40,8 @@ class State(Enum):
 
 
 class Arena(Node):
+    """ Main class
+    """
     def __init__(self):
         super().__init__('arena')
         self.count = 0

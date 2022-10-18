@@ -33,24 +33,33 @@ class Arena(Node):
         super().__init__('arena')
         self.count = 0
         self.frequency = 250.0
-        self.timer = self.create_timer(1/self.frequency, self.timer_callback)
+        self.timer = self.create_timer(1 / self.frequency, self.timer_callback)
         self.marker_pub = self.create_publisher(Marker, "wall_marker", 10)
         self.brick_pub = self.create_publisher(Marker, "brick_marker", 10)
-        self.joint_state_pub = self.create_publisher(JointState, "joint_states", 10)
-        self.joint_state_sub = self.create_subscription(JointState, "joint_states",
-                                                        self.js_callback, 10)
+        self.joint_state_pub = self.create_publisher(
+            JointState, "joint_states", 10)
+        self.joint_state_sub = self.create_subscription(
+            JointState, "joint_states", self.js_callback, 10)
 
-        self.brick_place = self.create_service(Place, "brick_place", self.place_callback)
+        self.brick_place = self.create_service(
+            Place, "brick_place", self.place_callback)
         # self.brick_place_client = self.create_client(Place, "brick_place")
-        self.brick_drop = self.create_service(Empty, "brick_drop", self.drop_callback)
+        self.brick_drop = self.create_service(
+            Empty, "brick_drop", self.drop_callback)
         # self.brick_place_client = self.create_client(Place, "brick_place")
         self.state = State.RUNNING
         self.broadcaster = TransformBroadcaster(self)
         self.time = 0.0
         self.brick_z_initial = 0.0
-        self.current_pos = Pose(x=0.0, y=0.0, theta=0.0, linear_velocity=0.0, angular_velocity=0.0)
-        self.tilt_sub = self.create_subscription(Tilt, "tilt", self.tilt_callback, 5)
-        self.tilt_def = math.pi/6
+        self.current_pos = Pose(
+            x=0.0,
+            y=0.0,
+            theta=0.0,
+            linear_velocity=0.0,
+            angular_velocity=0.0)
+        self.tilt_sub = self.create_subscription(
+            Tilt, "tilt", self.tilt_callback, 5)
+        self.tilt_def = math.pi / 6
         self.pos_or_subscriber = self.create_subscription(
             Pose, "turtle1/pose", self.pos_or_callback, 10)
         self.declare_parameter("gravity", 9.8, ParameterDescriptor(
@@ -67,8 +76,9 @@ class Arena(Node):
             "wheel_radius").get_parameter_value().double_value
         self.platform_height = self.get_parameter(
             "platform_height").get_parameter_value().double_value
-        self.platform_radius = 5*self.wheel_radius
-        self.max_velocity = self.get_parameter("max_velocity").get_parameter_value().double_value
+        self.platform_radius = 5 * self.wheel_radius
+        self.max_velocity = self.get_parameter(
+            "max_velocity").get_parameter_value().double_value
         # assert all values greater than 0
 
         self.marker_walls_border = Marker()
@@ -84,13 +94,38 @@ class Arena(Node):
         self.marker_walls_border.color.a = 1.0
 
         self.points = []
-        self.points.append(Point(x=0.0, y=0.0, z=self.marker_walls_border.scale.z/2))
+        self.points.append(
+            Point(
+                x=0.0,
+                y=0.0,
+                z=self.marker_walls_border.scale.z /
+                2))
         for x in range(1, 12):
-            self.points.append(Point(x=float(x), y=0.0, z=self.marker_walls_border.scale.z/2))
-            self.points.append(Point(x=float(x), y=11.0, z=self.marker_walls_border.scale.z/2.0))
+            self.points.append(
+                Point(
+                    x=float(x),
+                    y=0.0,
+                    z=self.marker_walls_border.scale.z /
+                    2))
+            self.points.append(
+                Point(
+                    x=float(x),
+                    y=11.0,
+                    z=self.marker_walls_border.scale.z /
+                    2.0))
         for y in range(1, 12):
-            self.points.append((Point(x=0.0, y=float(y), z=self.marker_walls_border.scale.z/2)))
-            self.points.append((Point(x=11.0, y=float(y), z=self.marker_walls_border.scale.z/2)))
+            self.points.append(
+                (Point(
+                    x=0.0,
+                    y=float(y),
+                    z=self.marker_walls_border.scale.z /
+                    2)))
+            self.points.append(
+                (Point(
+                    x=11.0,
+                    y=float(y),
+                    z=self.marker_walls_border.scale.z /
+                    2)))
 
         self.marker_walls_border.points = self.points
 
@@ -122,39 +157,40 @@ class Arena(Node):
             try:
                 self.platform_brick = self.tf_buffer.lookup_transform(
                     "platform_tilt", "brick", rclpy.time.Time())
-            except:
+            except BaseException:
                 # print("not published yet")
                 return
             # print(self.platform_brick.transform.translation.x,
             #   self.platform_brick.transform.translation.y)
-            self.time = self.time + 1/self.frequency
-            self.marker_brick.pose.position.z = self.brick_z_initial - 0.5*self.g*self.time**2
-            if (abs(self.marker_brick.pose.position.z - self.marker_brick.scale.z/2.0) <=
-                    self.platform_height) and (
-                        abs(self.platform_brick.transform.translation.x) <=
-                             self.wheel_radius*5) and (abs(
-                                self.platform_brick.transform.translation.y) <=
-                                    self.wheel_radius*5):
+            self.time = self.time + 1 / self.frequency
+            self.marker_brick.pose.position.z = self.brick_z_initial - 0.5 * self.g * self.time**2
+            if (abs(self.marker_brick.pose.position.z - self.marker_brick.scale.z / 2.0) <=
+                self.platform_height) and (
+                abs(self.platform_brick.transform.translation.x) <=
+                    self.wheel_radius * 5) and (abs(
+                        self.platform_brick.transform.translation.y) <=
+                    self.wheel_radius * 5):
                 self.time = 0.0
                 self.brick_y_initial = self.world_brick.transform.translation.y
                 self.brick_z_initial = self.world_brick.transform.translation.z
                 self.state = State.BRICK_PLATFORM
-            if self.marker_brick.pose.position.z <= self.marker_brick.scale.z/2.0:
+            if self.marker_brick.pose.position.z <= self.marker_brick.scale.z / 2.0:
                 self.state = State.RUNNING
                 self.brick_z_initial = 0.0
         if self.state == State.BRICK_PLATFORM:
             self.marker_brick.pose.position.x = self.current_pos.x
             self.marker_brick.pose.position.y = self.current_pos.y
-            self.marker_brick.pose.position.z = self.platform_height+self.marker_brick.scale.z/2.0
+            self.marker_brick.pose.position.z = self.platform_height + \
+                self.marker_brick.scale.z / 2.0
             try:
                 self.odom_brick = self.tf_buffer.lookup_transform(
                     "odom", "brick", rclpy.time.Time())
-            except:
+            except BaseException:
                 print("not published yet")
                 return
             if self.odom_brick:
-                if (abs(self.odom_brick.transform.translation.x) <= self.max_velocity/10.0) and (
-                        abs(self.odom_brick.transform.translation.y) <= self.max_velocity/10.0):
+                if (abs(self.odom_brick.transform.translation.x) <= self.max_velocity / 10.0) and (
+                        abs(self.odom_brick.transform.translation.y) <= self.max_velocity / 10.0):
                     self.state = State.BACK_TO_HOME
         if self.state == State.BACK_TO_HOME:
             if self.js.position[2] == float(0.0):
@@ -172,12 +208,12 @@ class Arena(Node):
         self.marker_brick = Marker(type=1)
         self.marker_brick.header.frame_id = "world"
         self.marker_brick.header.stamp = self.get_clock().now().to_msg()
-        self.marker_brick.color.r = 132.0/255.0
-        self.marker_brick.color.g = 31.0/255.0
-        self.marker_brick.color.b = 39.0/255.0
+        self.marker_brick.color.r = 132.0 / 255.0
+        self.marker_brick.color.g = 31.0 / 255.0
+        self.marker_brick.color.b = 39.0 / 255.0
         self.marker_brick.action = 0
-        self.marker_brick.scale.x = 2.0*self.wheel_radius
-        self.marker_brick.scale.y = 2.0*self.marker_brick.scale.x
+        self.marker_brick.scale.x = 2.0 * self.wheel_radius
+        self.marker_brick.scale.y = 2.0 * self.marker_brick.scale.x
         self.marker_brick.scale.z = self.marker_brick.scale.x
         self.marker_brick.pose.position.x = request.brick_x
         self.marker_brick.pose.position.y = request.brick_y
@@ -185,7 +221,10 @@ class Arena(Node):
         self.marker_brick.color.a = 1.0
         self.time = 0.0
         self.brick_z_initial = request.brick_z
-        self.brick_place_initial = Point(x=request.brick_x, y=request.brick_y, z=request.brick_z)
+        self.brick_place_initial = Point(
+            x=request.brick_x,
+            y=request.brick_y,
+            z=request.brick_z)
         return response
 
     def drop_callback(self, request, response):
@@ -213,24 +252,39 @@ class Arena(Node):
         return
 
     def tilt_brick(self):
-        t_req = math.sqrt(5*self.wheel_radius*2.0/self.g/math.sin(self.tilt_def))
-        self.time += 1/self.frequency
+        t_req = math.sqrt(
+            5 *
+            self.wheel_radius *
+            2.0 /
+            self.g /
+            math.sin(
+                self.tilt_def))
+        self.time += 1 / self.frequency
         if self.state == State.TILTING_OFF:
             self.marker_brick.pose.orientation.x = self.tilt_def
             self.world_brick.transform.rotation.x = self.tilt_def
-            self.marker_brick.pose.position.y = (self.brick_y_initial -
-                                                 0.5*self.g*math.sin(self.tilt_def)*self.time**2)
-            self.marker_brick.pose.position.z = (self.brick_z_initial -
-                                                 0.5*self.g*math.cos(self.tilt_def)*self.time**2)
+            self.marker_brick.pose.position.y = (
+                self.brick_y_initial - 0.5 * self.g *
+                math.sin(
+                    self.tilt_def) *
+                self.time**2)
+            self.marker_brick.pose.position.z = (
+                self.brick_z_initial -
+                0.5 *
+                self.g *
+                math.cos(
+                    self.tilt_def) *
+                self.time**2)
             # z_height = self.marker_brick.pose.position.z
             # print(self.marker_brick.pose.position.y,
-            #   self.marker_brick.pose.position.z, self.marker_brick.pose.orientation.z)
+            # self.marker_brick.pose.position.z,
+            # self.marker_brick.pose.orientation.z)
         if self.time >= t_req:
             self.brick_z_initial = self.marker_brick.pose.position.z
             self.state = State.TILT_ORIGINAL
         if self.state == State.TILT_ORIGINAL:
-            self.marker_brick.pose.orientation.x = 0*self.tilt_def
-            self.world_brick.transform.rotation.x = 0*self.tilt_def
+            self.marker_brick.pose.orientation.x = 0 * self.tilt_def
+            self.world_brick.transform.rotation.x = 0 * self.tilt_def
             self.marker_brick.pose.position.x = self.brick_place_initial.x
             self.marker_brick.pose.position.y = self.brick_place_initial.y
             self.marker_brick.pose.position.z = self.brick_place_initial.z

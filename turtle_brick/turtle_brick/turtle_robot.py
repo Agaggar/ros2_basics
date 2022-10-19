@@ -48,8 +48,8 @@ class TurtleRobot(Node):
         self.odom_pub = self.create_publisher(Odometry, "odom", 10)
         self.goal_sub = self.create_subscription(
             Point, "goal_message", self.goal_move_callback, 1)
-        self.joint_state_sub = self.create_subscription(
-            JointState, "joint_states", self.js_callback, 10)
+        # self.joint_state_sub = self.create_subscription(
+        #     JointState, "joint_states", self.js_callback, 10)
         self.joint_state_pub = self.create_publisher(
             JointState, "joint_states", 10)
         self.current_pos = Pose(
@@ -127,8 +127,8 @@ class TurtleRobot(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
         self.js = JointState()
-        self.js.name = ['wheel_stem', 'stem_base', 'platform_x']
-        self.js.position = [0.0, 0.0, 0.0]
+        self.js.name = ['wheel_stem', 'stem_base', 'platform_x', 'base_platform_fixed']
+        self.js.position = [0.0, 0.0, 0.0, 0.0]
         self.tmr = self.create_timer(1 / 100.0, self.timer_callback)
         self.time = 0.0
 
@@ -161,11 +161,23 @@ class TurtleRobot(Node):
         self.odom_base.transform.translation.y = self.current_pos.y - self.spawn_pos.y
         self.broadcaster.sendTransform(self.odom_base)
 
+        self.vel_publisher.publish(self.current_twist)
+        self.odom_pub.publish(self.twist_to_odom(self.current_twist))
+        self.js.header.stamp = self.get_clock().now().to_msg()
+        self.joint_state_pub.publish(self.js)
+
         if self.state == State.STOPPED:
+            self.time = 0
+            self.js.position = [0.0, 0.0, 0.0, 0.0]
             self.vel_publisher.publish(self.current_twist)
         if self.state == State.MOVING:
+            self.time += 1 / 100.0
+            self.js.position[0] = self.max_velocity / self.wheel_radius * self.time
+            self.js.position[1] = self.goal_theta
             self.move(self.goal)
         if self.state == State.WAITING:
+            self.js.position = [0.0, 0.0, 0.0, 0.0]
+            self.time = 0
             try:
                 self.platform_brick = self.tf_buffer.lookup_transform(
                     "platform_tilt", "brick", rclpy.time.Time())
@@ -177,15 +189,16 @@ class TurtleRobot(Node):
                     self.state = State.CAUGHT
         if self.state == State.CAUGHT:
             self.back_to_center()
+            self.js.position[1] = self.goal_theta
+            self.js.position[0] = self.max_velocity / self.wheel_radius * self.time
         if self.state == State.TILT:
+            self.time = 0
+            self.js.position = [0.0, 0.0, self.tilt_angle, 0.0]
             self.current_twist = Twist(
                 linear=Vector3(
                     x=0.0, y=0.0, z=0.0), angular=Vector3(
                     x=0.0, y=0.0, z=0.0))
             self.state = State.STOPPED
-
-        self.vel_publisher.publish(self.current_twist)
-        self.odom_pub.publish(self.twist_to_odom(self.current_twist))
 
     def pos_or_callback(self, msg):
         """Called by self.pos_or_subscriber
@@ -252,20 +265,6 @@ class TurtleRobot(Node):
             self.state = State.TILT
         self.vel_publisher.publish(self.current_twist)
         self.odom_pub.publish(self.twist_to_odom(self.current_twist))
-
-    def js_callback(self, msg):
-        if self.state == State.STOPPED and self.state == State.WAITING and (
-                self.state == State.TILT):
-            self.js.position = msg.position
-            self.js.position[0] = 0.0
-            self.time = 0
-        if self.state == State.MOVING or self.state == State.CAUGHT:
-            self.time += 1 / 100.0
-            self.js.position[1] = self.goal_theta
-            self.joint_state_pub.publish(self.js)
-            self.js.position[0] = self.max_velocity / \
-                self.wheel_radius * self.time
-        return
 
 
 def main(args=None):

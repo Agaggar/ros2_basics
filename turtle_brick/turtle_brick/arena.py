@@ -51,8 +51,8 @@ class Arena(Node):
         self.brick_pub = self.create_publisher(Marker, "brick_marker", 10)
         self.joint_state_pub = self.create_publisher(
             JointState, "joint_states", 10)
-        self.joint_state_sub = self.create_subscription(
-            JointState, "joint_states", self.js_callback, 10)
+        # self.joint_state_sub = self.create_subscription(
+        #     JointState, "joint_states", self.js_callback, 10)
         self.brick_place = self.create_service(
             Place, "brick_place", self.place_callback)
         self.brick_drop = self.create_service(
@@ -184,7 +184,7 @@ class Arena(Node):
             self.broadcaster.sendTransform(self.world_brick)
             self.brick_pub.publish(self.marker_brick)
             self.js.header.stamp = self.get_clock().now().to_msg()
-        self.joint_state_pub.publish(self.js)
+        # self.joint_state_pub.publish(self.js)
 
         if self.state == State.DROP_BRICK:
             try:

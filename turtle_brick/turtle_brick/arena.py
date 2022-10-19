@@ -49,10 +49,6 @@ class Arena(Node):
         self.timer = self.create_timer(1 / self.frequency, self.timer_callback)
         self.marker_pub = self.create_publisher(Marker, "wall_marker", 10)
         self.brick_pub = self.create_publisher(Marker, "brick_marker", 10)
-        self.joint_state_pub = self.create_publisher(
-            JointState, "joint_states", 10)
-        # self.joint_state_sub = self.create_subscription(
-        #     JointState, "joint_states", self.js_callback, 10)
         self.brick_place = self.create_service(
             Place, "brick_place", self.place_callback)
         self.brick_drop = self.create_service(
@@ -165,9 +161,6 @@ class Arena(Node):
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
-        self.js = JointState()
-        self.js.name = ['wheel_stem', 'stem_base', 'platform_x']
-        self.js.position = [float(0.0), float(0.0), float(0.0)]
         self.brick_place_initial = Point(x=0.0, y=0.0, z=0.0)
         self.world_brick = TransformStamped()
 
@@ -183,8 +176,6 @@ class Arena(Node):
             self.world_brick.transform.translation.z = self.marker_brick.pose.position.z
             self.broadcaster.sendTransform(self.world_brick)
             self.brick_pub.publish(self.marker_brick)
-            self.js.header.stamp = self.get_clock().now().to_msg()
-        # self.joint_state_pub.publish(self.js)
 
         if self.state == State.DROP_BRICK:
             try:
@@ -226,15 +217,10 @@ class Arena(Node):
                         abs(self.odom_brick.transform.translation.y) <= self.max_velocity / 10.0):
                     self.state = State.BACK_TO_HOME
         if self.state == State.BACK_TO_HOME:
-            if self.js.position[2] == 0.0:
-                self.js.position[2] = self.tilt_def
                 self.state = State.TILTING_OFF
         if self.state == State.TILTING_OFF:
-            self.js.position[1] = 0.0
             self.tilt_brick()
         if self.state == State.TILT_ORIGINAL:
-            self.js.position[1] = 0.0
-            self.js.position[2] = 0.0
             self.tilt_brick()
         self.count += 1
 
@@ -278,12 +264,6 @@ class Arena(Node):
 
     def tilt_callback(self, msg):
         self.tilt_def = msg.angle
-        return
-
-    def js_callback(self, msg):
-        if self.state != State.BACK_TO_HOME and (
-                self.state != State.TILT_ORIGINAL and self.state != State.TILTING_OFF):
-            self.js.position = msg.position
         return
 
     def tilt_brick(self):

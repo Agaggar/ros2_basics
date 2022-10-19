@@ -1,7 +1,7 @@
 from ament_index_python.packages import get_package_share_path
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.conditions import IfCondition, LaunchConfigurationEquals, UnlessCondition
+from launch.conditions import LaunchConfigurationEquals
 from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
@@ -17,13 +17,13 @@ def generate_launch_description():
     rviz_arg = DeclareLaunchArgument(name='rvizconfig',
                                      default_value=str(default_rviz_config_path),
                                      description='Absolute path to rviz config file')
-    use_jsp = DeclareLaunchArgument(name='use_jsp', default_value='none', choices=['gui', 'jsp', 'none'],
-                                        description='Choices for joint state publisher gui')
+    use_jsp = DeclareLaunchArgument(name='use_jsp', default_value='none',
+                                    choices=['gui', 'jsp', 'none'],
+                                    description='Choices for joint state publisher gui')
 
     robot_description = ParameterValue(Command(['xacro ', LaunchConfiguration('model')]),
                                        value_type=str)
     robot_configs = turtle_brick_pkg_path / 'turtle.yaml'
-    # assert that platform_height is >=7*wheel_radius
 
     arena_node = Node(
         package='turtle_brick',

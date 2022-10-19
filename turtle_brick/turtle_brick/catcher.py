@@ -16,7 +16,7 @@ SUBSCRIBERS:
 
 SERVICES:
   + topic name: "brick_place" type: turtle_brick_interfaces/srv/Place - visually does nothing, but
-    needed by the node to know where the brick is initially placed and determine whether it is 
+    needed by the node to know where the brick is initially placed and determine whether it is
     falling or not.
 
 PARAMETERS:
@@ -125,10 +125,10 @@ class Catcher(Node):
         self.text_reachable = Marker(type=9)
         self.text_count = 0
         self.theta_tilt_default = math.pi / 6
-        if self.max_velocity / 10.0 > 0.05:
-            self.tolerance = 0.05
+        if self.max_velocity / 10.0 > 0.1:
+            self.tolerance = 0.1
         else:
-            self.tolerance = 0.05
+            self.tolerance = 0.1
 
         self.brick_place = self.create_service(
             Place, "brick_place", self.place_callback)
@@ -166,7 +166,7 @@ class Catcher(Node):
             two frames.
         """
         if self.prev_brick_z1 is None:
-                self.prev_brick_z1 = self.world_brick.transform.translation.z
+            self.prev_brick_z1 = self.world_brick.transform.translation.z
         else:
             if (self.prev_brick_z1 -
                     self.world_brick.transform.translation.z) > 0.0:
@@ -200,7 +200,7 @@ class Catcher(Node):
             if self.goal_initial is None:
                 self.goal_initial = self.goal
             self.goal_pub.publish(self.goal)
-        else:
+        elif catchable is False and self.state == State.BRICK_FALLING:
             self.state = State.UNCATCHABLE
             self.uncatchable_pub()
         if self.distance_goal <= self.tolerance:

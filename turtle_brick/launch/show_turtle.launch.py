@@ -1,7 +1,7 @@
 from ament_index_python.packages import get_package_share_path
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.conditions import IfCondition, LaunchConfigurationEquals
+from launch.conditions import IfCondition, LaunchConfigurationEquals, UnlessCondition
 from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
@@ -19,7 +19,7 @@ def generate_launch_description():
     rviz_arg = DeclareLaunchArgument(name='rvizconfig',
                                      default_value=str(default_rviz_config_path),
                                      description='Absolute path to rviz config file')
-    use_jsp_arg = DeclareLaunchArgument(name='use_jsp', default_value='jsp', choices=['gui, jsp, none'],
+    use_jsp_arg = DeclareLaunchArgument(name='use_jsp', default_value='gui', choices=['gui', 'jsp', 'none'],
                                         description='Choices for joint state publisher gui')
 
     robot_description = ParameterValue(Command(['xacro ', LaunchConfiguration('model')]),
@@ -47,14 +47,15 @@ def generate_launch_description():
     joint_state_publisher_node = Node(
         package='joint_state_publisher',
         executable='joint_state_publisher',
-        condition=LaunchConfigurationEquals(LaunchConfiguration('use_jsp'), 'jsp')
+        # condition=LaunchConfigurationEquals(LaunchConfiguration('use_jsp'), 'jsp')
+        condition=UnlessCondition(LaunchConfiguration('gui'))
     )
 
     joint_state_publisher_gui_node = Node(
         package='joint_state_publisher_gui',
         executable='joint_state_publisher_gui',
-        condition=LaunchConfigurationEquals(LaunchConfiguration('use_jsp'), 'gui')
-        # condition=IfCondition(LaunchConfiguration('gui'))
+        # condition=LaunchConfigurationEquals(LaunchConfiguration('use_jsp'), 'gui')
+        condition=IfCondition(LaunchConfiguration('gui'))
     )
 
     rviz_node = Node(

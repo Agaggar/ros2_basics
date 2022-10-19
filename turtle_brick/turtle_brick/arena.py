@@ -53,13 +53,11 @@ class Arena(Node):
             JointState, "joint_states", 10)
         self.joint_state_sub = self.create_subscription(
             JointState, "joint_states", self.js_callback, 10)
-
         self.brick_place = self.create_service(
             Place, "brick_place", self.place_callback)
-        # self.brick_place_client = self.create_client(Place, "brick_place")
         self.brick_drop = self.create_service(
             Empty, "brick_drop", self.drop_callback)
-        # self.brick_place_client = self.create_client(Place, "brick_place")
+
         self.state = State.RUNNING
         self.broadcaster = TransformBroadcaster(self)
         self.time = 0.0
@@ -85,14 +83,36 @@ class Arena(Node):
             description="max linear velocity"))
         self.g = self.get_parameter(
             "gravity").get_parameter_value().double_value
+        if self.g < 0:
+            print("Acceleration due to gravity must be positive! Correcting...")
+            self.g = abs(self.g)
+        if self.g == 0:
+            print("Acceleration due to gravity can't be 0! Defaulting...")
+            self.g = 9.8
         self.wheel_radius = self.get_parameter(
             "wheel_radius").get_parameter_value().double_value
+        if self.wheel_radius < 0:
+            print("Wheel radius must be positive! Correcting...")
+            self.wheel_radius = abs(self.wheel_radius)
+        if self.wheel_radius == 0:
+            print("Wheel radius can't be 0! Defaulting...")
+            self.wheel_radius = 0.5
         self.platform_height = self.get_parameter(
             "platform_height").get_parameter_value().double_value
-        self.platform_radius = 5 * self.wheel_radius
+        if self.platform_height < 0:
+            print("Platform height must be positive! Correcting...")
+            self.platform_height = abs(self.platform_height)
+        if self.platform_height < 7*self.wheel_radius:
+            print("The platform height must be >=7*wheel_radius! Correcting platform height")
+            self.platform_height = 7*self.wheel_radius
         self.max_velocity = self.get_parameter(
             "max_velocity").get_parameter_value().double_value
-        # assert all values greater than 0
+        if self.max_velocity < 0:
+            print("Max velocity must be > 0 as defined in kinematic equations. Correcting...")
+            self.max_velocity = abs(self.max_velocity)
+        if self.max_velocity == 0:
+            print("Max velocity can't be 0! Defaulting...")
+            self.max_velocity = 2.2
 
         self.marker_walls_border = Marker()
         self.marker_walls_border.header.frame_id = "world"
@@ -290,9 +310,10 @@ class Arena(Node):
                     self.tilt_def) *
                 self.time**2)
             z_height = self.marker_brick.pose.position.z
-            print(self.marker_brick.pose.position.y,
-            self.marker_brick.pose.position.z,
-            self.marker_brick.pose.orientation.z)
+            # print(self.marker_brick.pose.position.y,
+            # self.marker_brick.pose.position.z,
+            # self.marker_brick.pose.orientation.z)
+        print(self.time, t_req)
         if self.time >= t_req:
             self.brick_z_initial = self.marker_brick.pose.position.z
             self.state = State.TILT_ORIGINAL

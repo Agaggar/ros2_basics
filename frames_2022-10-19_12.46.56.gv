@@ -1,0 +1,13 @@
+digraph G {
+"world" -> "brick"[label=" Broadcaster: default_authority\nAverage rate: 250.001\nBuffer length: 5.02\nMost recent transform: 1666201616.864443\nOldest transform: 1666201611.844459\n"];
+"base_link" -> "platform_fixed"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"odom" -> "base_link"[label=" Broadcaster: default_authority\nAverage rate: 100.195\nBuffer length: 5.02\nMost recent transform: 1666201616.86705\nOldest transform: 1666201611.846857\n"];
+"platform_fixed" -> "platform_tilt"[label=" Broadcaster: default_authority\nAverage rate: 19.431\nBuffer length: 4.992\nMost recent transform: 1666201616.836796\nOldest transform: 1666201611.844753\n"];
+"base_link" -> "stem"[label=" Broadcaster: default_authority\nAverage rate: 19.431\nBuffer length: 4.992\nMost recent transform: 1666201616.836796\nOldest transform: 1666201611.844753\n"];
+"stem" -> "wheel"[label=" Broadcaster: default_authority\nAverage rate: 19.431\nBuffer length: 4.992\nMost recent transform: 1666201616.836796\nOldest transform: 1666201611.844753\n"];
+"world" -> "odom"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+edge [style=invis];
+ subgraph cluster_legend { style=bold; color=black; label ="view_frames Result";
+"Recorded at time: 1666201616.8806117"[ shape=plaintext ] ;
+}->"world";
+}

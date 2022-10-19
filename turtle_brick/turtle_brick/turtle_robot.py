@@ -83,12 +83,36 @@ class TurtleRobot(Node):
             description="max linear velocity"))
         self.g = self.get_parameter(
             "gravity").get_parameter_value().double_value
+        if self.g < 0:
+            print("Acceleration due to gravity must be positive! Correcting...")
+            self.g = abs(self.g)
+        if self.g == 0:
+            print("Acceleration due to gravity can't be 0! Defaulting...")
+            self.g = 9.8
         self.wheel_radius = self.get_parameter(
             "wheel_radius").get_parameter_value().double_value
+        if self.wheel_radius < 0:
+            print("Wheel radius must be positive! Correcting...")
+            self.wheel_radius = abs(self.wheel_radius)
+        if self.wheel_radius == 0:
+            print("Wheel radius can't be 0! Defaulting...")
+            self.wheel_radius = 0.5
         self.platform_height = self.get_parameter(
             "platform_height").get_parameter_value().double_value
+        if self.platform_height < 0:
+            print("Platform height must be positive! Correcting...")
+            self.platform_height = abs(self.platform_height)
+        if self.platform_height < 7*self.wheel_radius:
+            print("The platform height must be >=7*wheel_radius! Correcting platform height")
+            self.platform_height = 7*self.wheel_radius
         self.max_velocity = self.get_parameter(
             "max_velocity").get_parameter_value().double_value
+        if self.max_velocity < 0:
+            print("Max velocity must be > 0 as defined in kinematic equations. Correcting...")
+            self.max_velocity = abs(self.max_velocity)
+        if self.max_velocity == 0:
+            print("Max velocity can't be 0! Defaulting...")
+            self.max_velocity = 2.2
 
         world_base_tf = TransformStamped()
         world_base_tf.header.stamp = self.get_clock().now().to_msg()

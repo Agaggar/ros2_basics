@@ -12,14 +12,12 @@ def generate_launch_description():
     default_model_path = turtle_brick_pkg_path / 'turtle.urdf.xacro'
     default_rviz_config_path = turtle_brick_pkg_path / 'turtle_urdf.rviz'
 
-    gui_arg = DeclareLaunchArgument(name='gui', default_value='true', choices=['true', 'false'],
-                                    description='Flag to enable joint_state_publisher_gui')
     model_arg = DeclareLaunchArgument(name='model', default_value=str(default_model_path),
                                       description='Absolute path to robot urdf file')
     rviz_arg = DeclareLaunchArgument(name='rvizconfig',
                                      default_value=str(default_rviz_config_path),
                                      description='Absolute path to rviz config file')
-    use_jsp_arg = DeclareLaunchArgument(name='use_jsp', default_value='gui', choices=['gui', 'jsp', 'none'],
+    use_jsp = DeclareLaunchArgument(name='use_jsp', default_value='none', choices=['gui', 'jsp', 'none'],
                                         description='Choices for joint state publisher gui')
 
     robot_description = ParameterValue(Command(['xacro ', LaunchConfiguration('model')]),
@@ -42,20 +40,18 @@ def generate_launch_description():
         parameters=[{'robot_description': robot_description}]
     )
 
-    # Depending on gui parameter, either launch joint_state_publisher or joint_state_publisher_gui
-    # parameter should be called use_jsp: gui, jsp, or none
+    # Depending on gui parameter, either launch joint_state_publisher, joint_state_publisher_gui,
+    # or none
     joint_state_publisher_node = Node(
         package='joint_state_publisher',
         executable='joint_state_publisher',
-        # condition=LaunchConfigurationEquals(LaunchConfiguration('use_jsp'), 'jsp')
-        condition=UnlessCondition(LaunchConfiguration('gui'))
+        condition=LaunchConfigurationEquals('use_jsp', 'jsp')
     )
 
     joint_state_publisher_gui_node = Node(
         package='joint_state_publisher_gui',
         executable='joint_state_publisher_gui',
-        # condition=LaunchConfigurationEquals(LaunchConfiguration('use_jsp'), 'gui')
-        condition=IfCondition(LaunchConfiguration('gui'))
+        condition=LaunchConfigurationEquals('use_jsp', 'gui')
     )
 
     rviz_node = Node(
@@ -65,17 +61,11 @@ def generate_launch_description():
         # output='screen',
         arguments=['-d', LaunchConfiguration('rvizconfig')],
     )
-    '''
-    <node pkg="turtlesim" exec="turtlesim_node" name="roving_turtle">
-        <param from="$(find-pkg-share turtle_control)/colors.yaml" />
-   </node>
-    '''
 
     return LaunchDescription([
-        gui_arg,
         model_arg,
         rviz_arg,
-        use_jsp_arg,
+        use_jsp,
         joint_state_publisher_node,
         joint_state_publisher_gui_node,
         robot_state_publisher_node,

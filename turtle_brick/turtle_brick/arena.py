@@ -184,7 +184,7 @@ class Arena(Node):
             self.broadcaster.sendTransform(self.world_brick)
             self.brick_pub.publish(self.marker_brick)
             self.js.header.stamp = self.get_clock().now().to_msg()
-            self.joint_state_pub.publish(self.js)
+        self.joint_state_pub.publish(self.js)
 
         if self.state == State.DROP_BRICK:
             try:

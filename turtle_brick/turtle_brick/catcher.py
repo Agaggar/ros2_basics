@@ -195,7 +195,7 @@ class Catcher(Node):
         self.distance_goal = math.sqrt(
             (goal.y - self.current_pos.y)**2 + (goal.x - self.current_pos.x)**2)
         catchable = catch_dist(height_goal, self.distance_goal, self.g, self.max_velocity)
-        if catchable and self.state == State.BRICK_FALLING:
+        if catchable is True and self.state == State.BRICK_FALLING:
             self.goal = Point(x=goal.x, y=goal.y, z=goal.z)
             if self.goal_initial is None:
                 self.goal_initial = self.goal
@@ -276,14 +276,20 @@ class Catcher(Node):
 
 
 def catch_dist(height, distance, g, max_vel):
+    """ Called by check goal, returns True or False depending on kinematics.
+        Parameters:
+            - height (float) - height from which brick falls
+            - distance (float) - x-y distance to brick
+            - g (float) - acceleration due to gravity
+            - max_vel (float) - max_velocity of the robot
+    """
+    if height <= 0 or distance <= 0 or g <= 0 or max_vel <= 0:
+        return False
     if height >= 0:
         t = math.sqrt(2 * height / g)
     else:
         t = 0.0
-    if distance / max_vel <= t:
-        return True
-    else:
-        return False
+    return distance / max_vel <= t
 
 
 def main(args=None):

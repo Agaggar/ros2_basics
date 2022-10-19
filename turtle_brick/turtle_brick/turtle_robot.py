@@ -192,13 +192,15 @@ class TurtleRobot(Node):
             self.js.position[1] = self.goal_theta
             self.js.position[0] = self.max_velocity / self.wheel_radius * self.time
         if self.state == State.TILT:
-            self.time = 0
+            self.time += 1 / 100.0
             self.js.position = [0.0, 0.0, self.tilt_angle, 0.0]
             self.current_twist = Twist(
                 linear=Vector3(
                     x=0.0, y=0.0, z=0.0), angular=Vector3(
                     x=0.0, y=0.0, z=0.0))
-            self.state = State.STOPPED
+            t_req = math.sqrt(5 * self.wheel_radius * 2.0 / self.g / math.cos(self.tilt_angle))
+            if self.time >= t_req:
+                self.state = State.STOPPED
 
     def pos_or_callback(self, msg):
         """Called by self.pos_or_subscriber
@@ -262,6 +264,7 @@ class TurtleRobot(Node):
         if goal_distance <= self.max_velocity / 10.0:
             self.current_twist = Twist(linear=Vector3(x=0.0, y=0.0, z=0.0),
                                        angular=Vector3(x=0.0, y=0.0, z=0.0))
+            self.time = 0.0
             self.state = State.TILT
         self.vel_publisher.publish(self.current_twist)
         self.odom_pub.publish(self.twist_to_odom(self.current_twist))

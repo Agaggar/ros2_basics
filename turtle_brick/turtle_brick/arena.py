@@ -309,11 +309,8 @@ class Arena(Node):
                 math.sin(
                     self.tilt_def) *
                 self.time**2)
-            z_height = self.marker_brick.pose.position.z
-            # print(self.marker_brick.pose.position.y,
-            # self.marker_brick.pose.position.z,
-            # self.marker_brick.pose.orientation.z)
-        print(self.time, t_req)
+            # z_height = self.marker_brick.pose.position.z
+        # print(self.time, t_req)
         if self.time >= t_req:
             self.brick_z_initial = self.marker_brick.pose.position.z
             self.state = State.TILT_ORIGINAL

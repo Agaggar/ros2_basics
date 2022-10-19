@@ -192,14 +192,10 @@ class Catcher(Node):
         """
         goal = self.world_brick.transform.translation
         height_goal = goal.z - self.platform_height
-        if height_goal >= 0:
-            self.t_req = math.sqrt(
-                2 * (goal.z - self.platform_height) / self.g)
-        else:
-            self.t_req = 0.0
         self.distance_goal = math.sqrt(
             (goal.y - self.current_pos.y)**2 + (goal.x - self.current_pos.x)**2)
-        if self.distance_goal / self.max_velocity <= self.t_req and self.state == State.BRICK_FALLING:
+        catchable = catch_dist(height_goal, self.distance_goal, self.g, self.max_velocity)
+        if catchable and self.state == State.BRICK_FALLING:
             self.goal = Point(x=goal.x, y=goal.y, z=goal.z)
             if self.goal_initial is None:
                 self.goal_initial = self.goal
@@ -277,6 +273,17 @@ class Catcher(Node):
         self.text_count = 0
         self.prev_brick_z2 = None
         return response
+
+
+def catch_dist(height, distance, g, max_vel):
+    if height >= 0:
+        t = math.sqrt(2 * height / g)
+    else:
+        t = 0.0
+    if distance / max_vel <= t:
+        return True
+    else:
+        return False
 
 
 def main(args=None):

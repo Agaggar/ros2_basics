@@ -3,12 +3,6 @@ This file controls the visuals of the arena walls and the brick.
 PUBLISHERS:
   + publishes to: "wall_marker", type: Marker - publishes a cube list, representing the walls.
   + publishes to: "brick_marker", type: Marker - publishes the brick visual.
-  + publishes to: "joint_states", type: sensor_msg/msgs/JointState - publishes each joint's
-    angles for visual effects and to connect to the transform tree.
-  + publishes to: "tf_static", type: geomtery_msgs/msg/TransformStamped - uses a
-    StaticTransformBroadcaster to publish static frames.
-  + publishes to: "tf", type: geomtery_msgs/msg/TransformStamped - uses a
-    TransformBroadcaster to publish frames.
 
 SUBSCRIBERS:
   + subscribes to: "turtle1/pose", type: turtlesim/msg/Pose - allows node to know where
@@ -30,13 +24,13 @@ PARAMETERS:
           config/turtle.yaml
 """
 
-import rclpy
+from enum import Enum, auto
 import math
+import rclpy
 from rclpy.node import Node
 import rclpy.time
 from rcl_interfaces.msg import ParameterDescriptor
 from std_srvs.srv import Empty
-from enum import Enum, auto
 from turtle_brick_interfaces.srv import Place
 from turtle_brick_interfaces.msg import Tilt
 from turtlesim.msg import Pose
@@ -61,8 +55,8 @@ class State(Enum):
 
 
 class Arena(Node):
-    """ Main class
-    """
+    """Publishes visuals of the brick and arena."""
+
     def __init__(self):
         super().__init__('arena')
         self.count = 0
@@ -74,6 +68,10 @@ class Arena(Node):
             Place, "brick_place", self.place_callback)
         self.brick_drop = self.create_service(
             Empty, "brick_drop", self.drop_callback)
+        self.tilt_sub = self.create_subscription(
+            Tilt, "tilt", self.tilt_callback, 5)
+        self.pos_or_subscriber = self.create_subscription(
+            Pose, "turtle1/pose", self.pos_or_callback, 10)
 
         self.state = State.RUNNING
         self.broadcaster = TransformBroadcaster(self)
@@ -85,11 +83,7 @@ class Arena(Node):
             theta=0.0,
             linear_velocity=0.0,
             angular_velocity=0.0)
-        self.tilt_sub = self.create_subscription(
-            Tilt, "tilt", self.tilt_callback, 5)
         self.tilt_def = math.pi / 6
-        self.pos_or_subscriber = self.create_subscription(
-            Pose, "turtle1/pose", self.pos_or_callback, 10)
         self.declare_parameter("gravity", 9.8, ParameterDescriptor(
             description="Accel due to gravity, 9.8 by default."))
         self.declare_parameter("wheel_radius", 0.5, ParameterDescriptor(
@@ -98,14 +92,14 @@ class Arena(Node):
             description="height of platform. MUST BE >=3.5*WHEEL_RADIUS"))
         self.declare_parameter("max_velocity", 0.22, ParameterDescriptor(
             description="max linear velocity"))
-        self.g = self.get_parameter(
+        self.accel_g = self.get_parameter(
             "gravity").get_parameter_value().double_value
-        if self.g < 0:
+        if self.accel_g < 0:
             print("Acceleration due to gravity must be positive! Correcting...")
-            self.g = abs(self.g)
-        if self.g == 0:
+            self.accel_g = abs(self.accel_g)
+        if self.accel_g == 0:
             print("Acceleration due to gravity can't be 0! Defaulting...")
-            self.g = 9.8
+            self.accel_g = 9.8
         self.wheel_radius = self.get_parameter(
             "wheel_radius").get_parameter_value().double_value
         if self.wheel_radius < 0:
@@ -142,7 +136,6 @@ class Arena(Node):
         self.marker_walls_border.scale.z = self.platform_height/2.0
         self.marker_walls_border.color.b = 1.0
         self.marker_walls_border.color.a = 1.0
-
         self.points = []
         self.points.append(
             Point(
@@ -150,34 +143,36 @@ class Arena(Node):
                 y=0.0,
                 z=self.marker_walls_border.scale.z /
                 2))
-        for x in range(1, 12):
+        for row in range(1, 12):
             self.points.append(
                 Point(
-                    x=float(x),
+                    x=float(row),
                     y=0.0,
                     z=self.marker_walls_border.scale.z /
                     2))
             self.points.append(
                 Point(
-                    x=float(x),
+                    x=float(row),
                     y=11.0,
                     z=self.marker_walls_border.scale.z /
                     2.0))
-        for y in range(1, 12):
+        for coln in range(1, 12):
             self.points.append(
                 (Point(
                     x=0.0,
-                    y=float(y),
+                    y=float(coln),
                     z=self.marker_walls_border.scale.z /
                     2)))
             self.points.append(
                 (Point(
                     x=11.0,
-                    y=float(y),
+                    y=float(coln),
                     z=self.marker_walls_border.scale.z /
                     2)))
-
         self.marker_walls_border.points = self.points
+        self.platform_brick = None
+        self.marker_brick = Marker(type=1)
+        self.marker_brick.header.frame_id = "world"
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -186,7 +181,8 @@ class Arena(Node):
         self.world_brick = TransformStamped()
 
     def timer_callback(self):
-        if (self.count % 25) == 0:
+        """Checks different states to determine which function to call."""
+        if (self.count % 50) == 0:
             self.marker_pub.publish(self.marker_walls_border)
         if self.state != State.RUNNING:
             self.world_brick.header.stamp = self.get_clock().now().to_msg()
@@ -203,12 +199,11 @@ class Arena(Node):
                 self.platform_brick = self.tf_buffer.lookup_transform(
                     "platform_tilt", "brick", rclpy.time.Time())
             except BaseException:
-                # print("not published yet")
+                print("not published yet")
                 return
-            # print(self.platform_brick.transform.translation.x,
-            #   self.platform_brick.transform.translation.y)
             self.time = self.time + 1 / self.frequency
-            self.marker_brick.pose.position.z = self.brick_z_initial - 0.5 * self.g * self.time**2
+            self.marker_brick.pose.position.z = self.brick_z_initial - (
+                0.5 * self.accel_g * self.time**2)
             if (abs(self.marker_brick.pose.position.z - self.marker_brick.scale.z / 2.0) <=
                 self.platform_height) and (
                 abs(self.platform_brick.transform.translation.x) <=
@@ -242,12 +237,15 @@ class Arena(Node):
         if self.state == State.TILT_ORIGINAL:
             self.tilt_brick()
         self.count += 1
-        # print(self.state)
 
     def place_callback(self, request, response):
+        """Reads the service input to publish the visual for the brick.
+        Service for "brick_place".
+        Keyword arguments:
+        request -- type turtle_brick_interfaces/srv/Place
+        response -- type std_srvs.srv.Empty
+        """
         self.state = State.PLACE_BRICK
-        self.marker_brick = Marker(type=1)
-        self.marker_brick.header.frame_id = "world"
         self.marker_brick.header.stamp = self.get_clock().now().to_msg()
         self.marker_brick.color.r = 132.0 / 255.0
         self.marker_brick.color.g = 31.0 / 255.0
@@ -269,6 +267,11 @@ class Arena(Node):
         return response
 
     def drop_callback(self, request, response):
+        """Drops brick.
+        Keyword arguments:
+        request -- type std_srvs.srv.Empty
+        response -- type std_srvs.srv.Empty
+        """
         if self.state == State.PLACE_BRICK:
             self.state = State.DROP_BRICK
         else:
@@ -276,21 +279,26 @@ class Arena(Node):
         return response
 
     def pos_or_callback(self, msg):
-        """Called by self.pos_or_subscriber
-        Subscribes to pose, and updates current point (x,y) with pose (x,y)
+        """Subscribes to "/turtle1/pose", and updates current pose with pose.
+        Keyword arguments:
+        msg -- type turtlesim/msg/Pose
         """
         self.current_pos = msg
-        return
 
     def tilt_callback(self, msg):
+        """Subscribed to "tilt". Updates angle with msg.angle to determine angle to tilt for
+        robot's platform.
+        Keyword arguments:
+        msg -- type turtle_brick_interfaces/msg/Tilt
+        """
         self.tilt_def = msg.angle
-        return
 
     def tilt_brick(self):
+        """Determines visuals of the brick while tilting."""
         t_req = math.sqrt(
             5 * self.wheel_radius *
             2.0 /
-            self.g /
+            self.accel_g /
             math.cos(
                 self.tilt_def))
         self.time += 1 / self.frequency
@@ -298,19 +306,17 @@ class Arena(Node):
             self.marker_brick.pose.orientation.x = self.tilt_def / 2
             self.world_brick.transform.rotation.x = self.tilt_def
             self.marker_brick.pose.position.y = (
-                self.brick_y_initial - 0.5 * self.g *
+                self.brick_y_initial - 0.5 * self.accel_g *
                 math.cos(
                     self.tilt_def) *
                 self.time**2)
             self.marker_brick.pose.position.z = (
                 self.brick_z_initial -
                 0.5 *
-                self.g *
+                self.accel_g *
                 math.sin(
                     self.tilt_def) *
                 self.time**2)
-            # z_height = self.marker_brick.pose.position.z
-        # print(self.time, t_req)
         if self.time >= t_req:
             self.brick_z_initial = self.marker_brick.pose.position.z
             self.state = State.TILT_ORIGINAL
@@ -322,10 +328,10 @@ class Arena(Node):
             self.marker_brick.pose.position.z = self.brick_place_initial.z
             self.state = State.PLACE_BRICK
             self.brick_z_initial = self.brick_place_initial.z
-        return
 
 
 def main(args=None):
+    """Create an arena node and spin."""
     rclpy.init(args=args)
     node = Arena()
     rclpy.spin(node)

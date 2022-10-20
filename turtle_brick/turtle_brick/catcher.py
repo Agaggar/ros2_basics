@@ -75,14 +75,14 @@ class Catcher(Node):
         self.declare_parameter(
             "max_velocity", 0.22, ParameterDescriptor(
                 description="max linear velocity"))
-        self.g = self.get_parameter(
+        self.accel_g = self.get_parameter(
             "gravity").get_parameter_value().double_value
-        if self.g < 0:
+        if self.accel_g < 0:
             print("Acceleration due to gravity must be positive! Correcting...")
-            self.g = abs(self.g)
-        if self.g == 0:
+            self.accel_g = abs(self.accel_g)
+        if self.accel_g == 0:
             print("Acceleration due to gravity can't be 0! Defaulting...")
-            self.g = 9.8
+            self.accel_g = 9.8
         self.wheel_radius = self.get_parameter(
             "wheel_radius").get_parameter_value().double_value
         if self.wheel_radius < 0:
@@ -193,7 +193,7 @@ class Catcher(Node):
         height_goal = goal.z - self.platform_height
         self.distance_goal = math.sqrt(
             (goal.y - self.current_pos.y)**2 + (goal.x - self.current_pos.x)**2)
-        catchable = catch_dist(height_goal, self.distance_goal, self.g, self.max_velocity)
+        catchable = catch_dist(height_goal, self.distance_goal, self.accel_g, self.max_velocity)
         if goal.x >= 11 or goal.y >= 11 or height_goal <= self.platform_height:
             catchable = False
         if catchable is True and self.state == State.BRICK_FALLING:

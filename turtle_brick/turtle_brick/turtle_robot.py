@@ -108,14 +108,14 @@ class TurtleRobot(Node):
             description="height of platform. MUST BE >=3.5*WHEEL_RADIUS"))
         self.declare_parameter("max_velocity", 0.22, ParameterDescriptor(
             description="max linear velocity"))
-        self.g = self.get_parameter(
+        self.accel_g = self.get_parameter(
             "gravity").get_parameter_value().double_value
-        if self.g < 0:
+        if self.accel_g < 0:
             print("Acceleration due to gravity must be positive! Correcting...")
-            self.g = abs(self.g)
-        if self.g == 0:
+            self.accel_g = abs(self.accel_g)
+        if self.accel_g == 0:
             print("Acceleration due to gravity can't be 0! Defaulting...")
-            self.g = 9.8
+            self.accel_g = 9.8
         self.wheel_radius = self.get_parameter(
             "wheel_radius").get_parameter_value().double_value
         if self.wheel_radius < 0:
@@ -232,7 +232,7 @@ class TurtleRobot(Node):
                 linear=Vector3(
                     x=0.0, y=0.0, z=0.0), angular=Vector3(
                     x=0.0, y=0.0, z=0.0))
-            t_req = math.sqrt(5 * self.wheel_radius * 2.0 / self.g / math.cos(self.tilt_angle))
+            t_req = math.sqrt(5 * self.wheel_radius * 2.0 / self.accel_g / math.cos(self.tilt_angle))
             if self.time >= t_req:
                 self.state = State.STOPPED
 
@@ -247,7 +247,7 @@ class TurtleRobot(Node):
         self.current_pos = msg
 
     def goal_move_callback(self, msg):
-        """Subscribes to "goal_message". 
+        """Subscribes to "goal_message".
         Keyword arguments:
         msg -- type geometry_msgs/msg/Point
         """

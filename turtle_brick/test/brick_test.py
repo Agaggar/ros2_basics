@@ -10,7 +10,7 @@ import rclpy
 
 @pytest.mark.rostest
 def generate_test_description():
-    """Generate test description"""
+    """Generate test description."""
     turtle_robot_action = Node(package="turtle_brick",
                                executable="turtle_robot",
                                name='turtle_robot')
@@ -25,24 +25,24 @@ def generate_test_description():
 class TestCmdVelPub(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        """Runs one time, when the testcase is loaded"""
+        """Runs one time, when the testcase is loaded."""
         rclpy.init()
 
     @classmethod
     def tearDownClass(cls):
-        """Runs one time, when testcase is unloaded"""
+        """Runs one time, when testcase is unloaded."""
         rclpy.shutdown()
 
     def setUp(self):
-        """Runs before every test - create node"""
+        """Runs before every test - create node."""
         self.node = rclpy.create_node('test_node')
 
     def tearDown(self):
-        """Runs after every test - destroy node"""
+        """Runs after every test - destroy node."""
         self.node.destroy_node()
 
     def test_cmd_vel_pub_rate(self, launch_service, cmd_vel_action, proc_output):
-        """This function should be checking rate of publishing"""
+        """This function should be checking rate of publishing."""
         # proc_output.assertWaitFor("Publishing turtle1/cmd_vel at:
         #   ", process=cmd_vel_action, timeout=3.0)
         # rclpy.spin_once(self.node)

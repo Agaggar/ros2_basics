@@ -1,37 +1,33 @@
 """This node is in charge of moving the robot to and from the brick's x-y position.
 
 PUBLISHERS:
-  + publishes to: "turtle1/cmd_vel", type: Marker - displays text "Unreachable" if brick can't be
-    caught.
-  + publishes to: "tilt", type: turtle_brick_interfaces/msg/Tilt - publishes the tilt angle for
-    the platform.
-  + publishes to: "goal_message", type: geometry_msg/msg/Point - publishes the goal of where the
-    brick will fall IF the brick is catchable.
-
-self.pos_or_subscriber = self.create_subscription(
-            Pose, "turtle1/pose", self.pos_or_callback, 10)
-        self.vel_publisher = self.create_publisher(
-            Twist, "turtle1/cmd_vel", 10)
-        self.odom_pub = self.create_publisher(Odometry, "odom", 10)
-        self.goal_sub = self.create_subscription(
-            Point, "goal_message", self.goal_move_callback, 1)
-        self.joint_state_pub = self.create_publisher(
-            JointState, "joint_states", 10)
+  + publishes to: "turtle1/cmd_vel", type: geometry_msgs/msg/Twist - publishes a twist of the
+    robot's current velocity
+  + publishes to: "odom", type: nav_msgs/msg/Odometry - publishes the odometry heading of the
+    robot (direct copy of cmd_vel)
+  + publishes to: "joint_states", type: sensor_msg/msgs/JointState - publishes each joint's
+    angles for visual effects and to connect to the transform tree
+  + publishes to: "tf_static", type: geomtery_msgs/msg/TransformStamped - uses a 
+    StaticTransformBroadcaster to publish static frames
+  + publishes to: "tf", type: geomtery_msgs/msg/TransformStamped - uses a 
+    TransformBroadcaster to publish frames
 
 SUBSCRIBERS:
   + subscribes to: "turtle1/pose", type: turtlesim/msg/Pose - allows node to know where
-    the turtle is at any given time, and therefore, knows where the robot is.
+    the turtle is at any given time, and therefore, knows where the robot is
+  + subscribes to: "tilt", type: turtle_brick_interfaces/msg/Tilt - allows node to know how much
+    to tilt the platform
 
 SERVICES:
-  + topic name: "brick_place" type: turtle_brick_interfaces/srv/Place - visually does nothing, but
-    needed by the node to know where the brick is initially placed and determine whether it is
-    falling or not.
+  + none
 
 PARAMETERS:
   + name: gravity, type: float - acceleration due to gravity, as defined in config/turtle.yaml
   + name: wheel_radius, type: float - radius of wheel, as defined in config/turtle.yaml
   + name: platform_height, type: float - robot's platform height, as defined in config/turtle.yaml
           note that the platform_height must be >= 7*wheel_radius for robot geometry to be sensible
+  + name: max_velocity, type: float - robot's maximum linear velocity, as defined in 
+          config/turtle.yaml
 """
 
 import rclpy
@@ -46,6 +42,7 @@ from geometry_msgs.msg import Point, PoseWithCovariance, TwistWithCovariance
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Header
 from .quaternion import angle_axis_to_quaternion
+from turtle_brick_interfaces.msg import Tilt
 
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
@@ -55,6 +52,9 @@ from sensor_msgs.msg import JointState
 
 
 class State(Enum):
+    """Different possible states of the system.
+    Determines what the main timer function should be doing on each iteration.
+    """
     MOVING = auto()
     STOPPED = auto()
     CAUGHT = auto()
@@ -63,21 +63,16 @@ class State(Enum):
 
 
 class TurtleRobot(Node):
-    """ Creates robot
-    Static broadcasts:
-        - world. All other frames are descendants of this
-        - odom. Fixed offset from world; denotes starting point of robot
-    Broadcasts:
-        - brick. Frame of brick
-        - base_link. Base of robot; other child frames defined by URDF
-    """
+    """Creates robot by broadcasting frames, and controls robot's motions"""
 
     def __init__(self):
+        """Initialize class variables."""
         super().__init__('turtle_node')
         self.static_broadcaster = StaticTransformBroadcaster(self)
         self.broadcaster = TransformBroadcaster(self)
         self.pos_or_subscriber = self.create_subscription(
             Pose, "turtle1/pose", self.pos_or_callback, 10)
+        self.tilt_sub = self.create_subscription(Tilt, "tilt", self.tilt_callback, 5)
         self.vel_publisher = self.create_publisher(
             Twist, "turtle1/cmd_vel", 10)
         self.odom_pub = self.create_publisher(Odometry, "odom", 10)
@@ -93,14 +88,13 @@ class TurtleRobot(Node):
             angular_velocity=0.0)
         self.current_twist = Twist(linear=Vector3(x=0.0, y=0.0, z=0.0),
                                    angular=Vector3(x=0.0, y=0.0, z=0.0))
-        # change spawn_pos to be a parameter that's passed in
+        self.initial_spawn = False
         self.spawn_pos = Pose(
             x=5.5444,
             y=5.5444,
             theta=0.0,
             linear_velocity=0.0,
             angular_velocity=0.0)
-        self.odom_bool = False
         self.state = State.STOPPED
         self.goal = Point(x=0.0, y=0.0, z=0.0)
         self.goal_theta = 0.0
@@ -146,6 +140,10 @@ class TurtleRobot(Node):
         if self.max_velocity == 0:
             print("Max velocity can't be 0! Defaulting...")
             self.max_velocity = 2.2
+        if self.max_velocity / 10.0 > 0.1:
+            self.tolerance = 0.1
+        else:
+            self.tolerance = 0.1
 
         world_base_tf = TransformStamped()
         world_base_tf.header.stamp = self.get_clock().now().to_msg()
@@ -164,8 +162,15 @@ class TurtleRobot(Node):
         self.js.position = [0.0, 0.0, 0.0, 0.0]
         self.tmr = self.create_timer(1 / 100.0, self.timer_callback)
         self.time = 0.0
+        self.odom_base = TransformStamped()
+        self.odom_base.header.frame_id = "odom"
+        self.odom_base.child_frame_id = "base_link"
 
     def twist_to_odom(self, conv_twist):
+        """Converts a geometry_msgs/msg/Twist to a nav_msgs/msg/Odometry type with no covariance
+        Parameters: conv_twist, type geometry_msgs/msg/Twist
+        Returns: type nav_msgs/msg/Odometry
+        """
         head = Header()
         head.stamp = self.get_clock().now().to_msg()
         head.frame_id = "odom"
@@ -185,12 +190,9 @@ class TurtleRobot(Node):
             twist=twis)
 
     def timer_callback(self):
-        self.odom_base = TransformStamped()
-        self.odom_base.header.frame_id = "odom"
-        self.odom_base.child_frame_id = "base_link"
+        """Checks different states to determine which function to call"""
         self.odom_base.header.stamp = self.get_clock().now().to_msg()
-        self.odom_base.transform.translation.x = self.current_pos.x - \
-            self.spawn_pos.x  # offset by half of wheel_length
+        self.odom_base.transform.translation.x = self.current_pos.x - self.spawn_pos.x
         self.odom_base.transform.translation.y = self.current_pos.y - self.spawn_pos.y
         self.broadcaster.sendTransform(self.odom_base)
 
@@ -235,31 +237,36 @@ class TurtleRobot(Node):
                 self.state = State.STOPPED
 
     def pos_or_callback(self, msg):
-        """Called by self.pos_or_subscriber
-        Subscribes to pose, and updates current with pose
+        """Subscribes to "/turtle1/pose", and updates current pose with pose
+        msg is of type turtlesim/msg/Pose
         """
-        if (self.spawn_pos is None):
+        if (self.initial_spawn is False):
             self.spawn_pos = msg
-            self.odom_bool = True
+            self.initial_spawn = True
         self.current_pos = msg
 
     def goal_move_callback(self, msg):
+        """Subscribes to "goal_message", with message type geometry_msgs/msg/Point"""
         if msg is not None and self.state == State.STOPPED:
             self.state = State.MOVING
         self.goal = msg
         return
 
     def move(self, goal):
+        """Called when self.state == State.MOVING. Calculates heading to goal and moves to goal at
+        max velocity. Switches to State.WAITING if at brick position waiting for brick to fall.
+        Parameter: goal, type geometry_msg/msgs/Point
+        """
         self.goal_theta = math.atan2(
             (goal.y - self.current_pos.y),
             (goal.x - self.current_pos.x))
         goal_distance = math.sqrt(
             (goal.y - self.current_pos.y)**2 + (goal.x - self.current_pos.x)**2)
-        if goal_distance <= self.max_velocity / 10.0:
+        if goal_distance <= self.tolerance:
             self.current_twist = Twist(linear=Vector3(x=0.0, y=0.0, z=0.0),
                                        angular=Vector3(x=0.0, y=0.0, z=0.0))
             self.state = State.WAITING
-        elif goal_distance > self.max_velocity / 10.0:
+        elif goal_distance > self.tolerance:
             self.current_twist.linear = Vector3(
                 x=self.max_velocity *
                 math.cos(
@@ -269,22 +276,25 @@ class TurtleRobot(Node):
                     self.goal_theta),
                 z=0.0)
             self.state = State.MOVING
-        # print(goal.y-self.current_pos.y)
 
-    def tilt_callback(self, request, response):
-        self.tilt_angle = request.angle
-        return response
+    def tilt_callback(self, msg):
+        """Subscribed to "tilt". Updates angle with msg.angle to determine angle to tilt for
+        robot's platform.
+        Parameter: msg, type turtle_brick_interfaces/msg/Tilt
+        """
+        self.tilt_angle = msg.angle
 
     def back_to_center(self):
+        """Called when self.state == State.CAUGHT; controls robot to go back to the home
+        position. Very similar to move function, with subtle changes in switching states.
+        """
         goal = Point(x=self.spawn_pos.x, y=self.spawn_pos.y, z=0.0)
         self.goal_theta = math.atan2(
             (goal.y - self.current_pos.y),
             (goal.x - self.current_pos.x))
-        # print(goal.y-self.current_pos.y)
         goal_distance = math.sqrt(
             (goal.y - self.current_pos.y)**2 + (goal.x - self.current_pos.x)**2)
-        if goal_distance > self.max_velocity / 10.0:
-            # self.current_twist.angular.z = 0.0
+        if goal_distance > self.tolerance:
             self.current_twist.linear = Vector3(
                 x=self.max_velocity *
                 math.cos(
@@ -293,7 +303,7 @@ class TurtleRobot(Node):
                 math.sin(
                     self.goal_theta),
                 z=0.0)
-        if goal_distance <= self.max_velocity / 10.0:
+        if goal_distance <= self.tolerance:
             self.current_twist = Twist(linear=Vector3(x=0.0, y=0.0, z=0.0),
                                        angular=Vector3(x=0.0, y=0.0, z=0.0))
             self.time = 0.0
@@ -301,6 +311,7 @@ class TurtleRobot(Node):
 
 
 def main(args=None):
+    """Create a turtle_robot node and spin."""
     rclpy.init(args=args)
     node = TurtleRobot()
     rclpy.spin(node)

@@ -211,7 +211,6 @@ class Arena(Node):
                 print("not published yet")
                 return
             if self.odom_brick:
-                print(abs(self.odom_brick.transform.translation.x), abs(self.odom_brick.transform.translation.y))
                 if (abs(self.odom_brick.transform.translation.x) <= self.max_velocity / 10.0) and (
                         abs(self.odom_brick.transform.translation.y) <= self.max_velocity / 10.0):
                     self.state = State.TILTING_OFF

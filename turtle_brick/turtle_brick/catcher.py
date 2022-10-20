@@ -6,7 +6,7 @@ PUBLISHERS:
     caught.
   + publishes to: "tilt", type: turtle_brick_interfaces/msg/Tilt - publishes the tilt angle for
     the platform.
-  + publishes to: "goal_message", type: geometry_msg/msg/Point - publishes the goal of where the
+  + publishes to: "goal_message", type: geometry_msgs/msg/Point - publishes the goal of where the
     brick will fall IF the brick is catchable.
 
 SUBSCRIBERS:
@@ -23,6 +23,8 @@ PARAMETERS:
   + name: wheel_radius, type: float - radius of wheel, as defined in config/turtle.yaml
   + name: platform_height, type: float - robot's platform height, as defined in config/turtle.yaml
           note that the platform_height must be >= 7*wheel_radius for robot geometry to be sensible
+  + name: max_velocity, type: float - robot's maximum linear velocity, as defined in 
+          config/turtle.yaml
 """
 
 import rclpy
@@ -256,8 +258,8 @@ class Catcher(Node):
                 self.state = State.CHILLING
 
     def pos_or_callback(self, msg):
-        """Called by self.pos_or_subscriber.
-        Subscribes to "/turtle1/pose", and updates current point (x,y) with pose (x,y)
+        """Subscribes to "/turtle1/pose", and updates current pose with pose
+        msg is of type turtlesim/msg/Pose
         """
         self.current_pos = msg
         return
@@ -298,7 +300,7 @@ def catch_dist(height, distance, g, max_vel):
 
 
 def main(args=None):
-    """Create a catcher node and spin once."""
+    """Create a catcher node and spin."""
     rclpy.init(args=args)
     node = Catcher()
     rclpy.spin(node)

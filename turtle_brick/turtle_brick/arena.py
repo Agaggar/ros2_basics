@@ -23,7 +23,6 @@ from visualization_msgs.msg import Marker
 from tf2_ros import TransformBroadcaster
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
-from sensor_msgs.msg import JointState
 
 
 class State(Enum):
@@ -217,7 +216,7 @@ class Arena(Node):
                         abs(self.odom_brick.transform.translation.y) <= self.max_velocity / 10.0):
                     self.state = State.BACK_TO_HOME
         if self.state == State.BACK_TO_HOME:
-                self.state = State.TILTING_OFF
+            self.state = State.TILTING_OFF
         if self.state == State.TILTING_OFF:
             self.tilt_brick()
         if self.state == State.TILT_ORIGINAL:

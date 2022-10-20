@@ -170,7 +170,6 @@ class TurtleRobot(Node):
         if self.state == State.STOPPED:
             self.time = 0
             self.js.position = [0.0, 0.0, 0.0, 0.0]
-            self.vel_publisher.publish(self.current_twist)
         if self.state == State.MOVING:
             self.time += 1 / 100.0
             self.js.position[0] = self.max_velocity / self.wheel_radius * self.time
@@ -267,8 +266,6 @@ class TurtleRobot(Node):
                                        angular=Vector3(x=0.0, y=0.0, z=0.0))
             self.time = 0.0
             self.state = State.TILT
-        self.vel_publisher.publish(self.current_twist)
-        self.odom_pub.publish(self.twist_to_odom(self.current_twist))
 
 
 def main(args=None):

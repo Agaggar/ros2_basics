@@ -23,7 +23,7 @@ PARAMETERS:
   + name: wheel_radius, type: float - radius of wheel, as defined in config/turtle.yaml
   + name: platform_height, type: float - robot's platform height, as defined in config/turtle.yaml
           note that the platform_height must be >= 7*wheel_radius for robot geometry to be sensible
-  + name: max_velocity, type: float - robot's maximum linear velocity, as defined in 
+  + name: max_velocity, type: float - robot's maximum linear velocity, as defined in
           config/turtle.yaml
 """
 
@@ -141,7 +141,7 @@ class Catcher(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
     def timer_callback(self):
-        """Checks different states to determine which function to call"""
+        """Checks different states to determine which function to call."""
         try:
             self.world_brick = self.tf_buffer.lookup_transform(
                 "world", "brick", rclpy.time.Time())
@@ -194,7 +194,7 @@ class Catcher(Node):
         self.distance_goal = math.sqrt(
             (goal.y - self.current_pos.y)**2 + (goal.x - self.current_pos.x)**2)
         catchable = catch_dist(height_goal, self.distance_goal, self.g, self.max_velocity)
-        if goal.x >= 11 or goal.y >= 11:
+        if goal.x >= 11 or goal.y >= 11 or height_goal <= self.platform_height:
             catchable = False
         if catchable is True and self.state == State.BRICK_FALLING:
             self.goal = Point(x=goal.x, y=goal.y, z=goal.z)
@@ -258,8 +258,9 @@ class Catcher(Node):
                 self.state = State.CHILLING
 
     def pos_or_callback(self, msg):
-        """Subscribes to "/turtle1/pose", and updates current pose with pose
-        msg is of type turtlesim/msg/Pose
+        """Subscribes to "/turtle1/pose", and updates current pose with pose.
+        Keyword arguments:
+        msg -- type turtlesim/msg/Pose
         """
         self.current_pos = msg
         return
@@ -268,8 +269,9 @@ class Catcher(Node):
         """Called by self.place_brick. Reads the service input to change the class variable
         brick_place_initial to the value determined by the service.
         Service for "brick_place".
-        Request of type Place
-        Response of type std_srvs.srv.Empty
+        Keyword arguments:
+        request -- type turtle_brick_interfaces/srv/Place
+        response -- type std_srvs.srv.Empty
         """
         self.brick_place_initial = Point(
             x=request.brick_x,
@@ -282,13 +284,13 @@ class Catcher(Node):
 
 def catch_dist(height, distance, g, max_vel):
     """Called by check goal, returns True or False depending on kinematics.
-    Parameters:
-    - height (float) - height from which brick falls
-    - distance (float) - x-y distance to brick
-    - g (float) - acceleration due to gravity
-    - max_vel (float) - max_velocity of the robot
+    Keyword arguments:
+    height (float) -- height from which brick falls
+    distance (float) -- x-y distance to brick
+    g (float) -- acceleration due to gravity
+    max_vel (float) -- max_velocity of the robot
     Returns:
-    - boolean True or False
+    boolean True or False
     """
     if height <= 0 or distance <= 0 or g <= 0 or max_vel <= 0:
         return False

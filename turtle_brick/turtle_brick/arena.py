@@ -1,10 +1,33 @@
 """
-This file controls visuals of the arena walls and the brick.
-Publishers:
+This file controls the visuals of the arena walls and the brick.
+PUBLISHERS:
+  + publishes to: "wall_marker", type: Marker - publishes a cube list, representing the walls.
+  + publishes to: "brick_marker", type: Marker - publishes the brick visual.
+  + publishes to: "joint_states", type: sensor_msg/msgs/JointState - publishes each joint's
+    angles for visual effects and to connect to the transform tree.
+  + publishes to: "tf_static", type: geomtery_msgs/msg/TransformStamped - uses a
+    StaticTransformBroadcaster to publish static frames.
+  + publishes to: "tf", type: geomtery_msgs/msg/TransformStamped - uses a
+    TransformBroadcaster to publish frames.
 
-Services:
+SUBSCRIBERS:
+  + subscribes to: "turtle1/pose", type: turtlesim/msg/Pose - allows node to know where
+    the turtle is at any given time, and therefore, knows where the robot is.
+  + subscribes to: "tilt", type: turtle_brick_interfaces/msg/Tilt - allows node to know how much
+    to tilt the platform.
 
-Parameters:
+SERVICES:
+  + name: "brick_place", type: turtle_brick_interfaces/srv/Place - places the brick to the
+    position defined by the service.
+  + name: "brick_drop", type: std_srvs/srv/Empty - drops the brick from the placed position.
+
+PARAMETERS:
+  + name: gravity, type: float - acceleration due to gravity, as defined in config/turtle.yaml
+  + name: wheel_radius, type: float - radius of wheel, as defined in config/turtle.yaml
+  + name: platform_height, type: float - robot's platform height, as defined in config/turtle.yaml
+          note that the platform_height must be >= 7*wheel_radius for robot geometry to be sensible
+  + name: max_velocity, type: float - robot's maximum linear velocity, as defined in
+          config/turtle.yaml
 """
 
 import rclpy
@@ -191,7 +214,7 @@ class Arena(Node):
                 abs(self.platform_brick.transform.translation.x) <=
                     self.wheel_radius * 5) and (abs(
                         self.platform_brick.transform.translation.y) <=
-                    self.wheel_radius * 5):
+                    self.wheel_radius * 5) and self.brick_place_initial.z >= self.platform_height:
                 self.time = 0.0
                 self.state = State.BRICK_PLATFORM
             if self.marker_brick.pose.position.z <= self.marker_brick.scale.z / 2.0:

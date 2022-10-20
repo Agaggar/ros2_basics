@@ -2,31 +2,31 @@
 
 PUBLISHERS:
   + publishes to: "turtle1/cmd_vel", type: geometry_msgs/msg/Twist - publishes a twist of the
-    robot's current velocity
+    robot's current velocity.
   + publishes to: "odom", type: nav_msgs/msg/Odometry - publishes the odometry heading of the
-    robot (direct copy of cmd_vel)
+    robot (direct copy of cmd_vel).
   + publishes to: "joint_states", type: sensor_msg/msgs/JointState - publishes each joint's
-    angles for visual effects and to connect to the transform tree
-  + publishes to: "tf_static", type: geomtery_msgs/msg/TransformStamped - uses a 
-    StaticTransformBroadcaster to publish static frames
-  + publishes to: "tf", type: geomtery_msgs/msg/TransformStamped - uses a 
-    TransformBroadcaster to publish frames
+    angles for visual effects and to connect to the transform tree.
+  + publishes to: "tf_static", type: geomtery_msgs/msg/TransformStamped - uses a
+    StaticTransformBroadcaster to publish static frames.
+  + publishes to: "tf", type: geomtery_msgs/msg/TransformStamped - uses a
+    TransformBroadcaster to publish frames.
 
 SUBSCRIBERS:
   + subscribes to: "turtle1/pose", type: turtlesim/msg/Pose - allows node to know where
-    the turtle is at any given time, and therefore, knows where the robot is
+    the turtle is at any given time, and therefore, knows where the robot is.
   + subscribes to: "tilt", type: turtle_brick_interfaces/msg/Tilt - allows node to know how much
-    to tilt the platform
+    to tilt the platform.
 
 SERVICES:
-  + none
+  + none.
 
 PARAMETERS:
   + name: gravity, type: float - acceleration due to gravity, as defined in config/turtle.yaml
   + name: wheel_radius, type: float - radius of wheel, as defined in config/turtle.yaml
   + name: platform_height, type: float - robot's platform height, as defined in config/turtle.yaml
           note that the platform_height must be >= 7*wheel_radius for robot geometry to be sensible
-  + name: max_velocity, type: float - robot's maximum linear velocity, as defined in 
+  + name: max_velocity, type: float - robot's maximum linear velocity, as defined in
           config/turtle.yaml
 """
 
@@ -63,7 +63,7 @@ class State(Enum):
 
 
 class TurtleRobot(Node):
-    """Creates robot by broadcasting frames, and controls robot's motions"""
+    """Creates robot by broadcasting frames, and controls robot's motions."""
 
     def __init__(self):
         """Initialize class variables."""
@@ -167,9 +167,9 @@ class TurtleRobot(Node):
         self.odom_base.child_frame_id = "base_link"
 
     def twist_to_odom(self, conv_twist):
-        """Converts a geometry_msgs/msg/Twist to a nav_msgs/msg/Odometry type with no covariance
-        Parameters: conv_twist, type geometry_msgs/msg/Twist
-        Returns: type nav_msgs/msg/Odometry
+        """Converts a geometry_msgs/msg/Twist to a nav_msgs/msg/Odometry type with no covariance.
+        Parameters -- conv_twist, type geometry_msgs/msg/Twist
+        Returns -- type nav_msgs/msg/Odometry
         """
         head = Header()
         head.stamp = self.get_clock().now().to_msg()
@@ -190,7 +190,7 @@ class TurtleRobot(Node):
             twist=twis)
 
     def timer_callback(self):
-        """Checks different states to determine which function to call"""
+        """Checks different states to determine which function to call."""
         self.odom_base.header.stamp = self.get_clock().now().to_msg()
         self.odom_base.transform.translation.x = self.current_pos.x - self.spawn_pos.x
         self.odom_base.transform.translation.y = self.current_pos.y - self.spawn_pos.y
@@ -237,8 +237,9 @@ class TurtleRobot(Node):
                 self.state = State.STOPPED
 
     def pos_or_callback(self, msg):
-        """Subscribes to "/turtle1/pose", and updates current pose with pose
-        msg is of type turtlesim/msg/Pose
+        """Subscribes to "/turtle1/pose", and updates current pose with pose.
+        Keyword arguments:
+        msg -- type turtlesim/msg/Pose
         """
         if (self.initial_spawn is False):
             self.spawn_pos = msg
@@ -246,7 +247,10 @@ class TurtleRobot(Node):
         self.current_pos = msg
 
     def goal_move_callback(self, msg):
-        """Subscribes to "goal_message", with message type geometry_msgs/msg/Point"""
+        """Subscribes to "goal_message". 
+        Keyword arguments:
+        msg -- type geometry_msgs/msg/Point
+        """
         if msg is not None and self.state == State.STOPPED:
             self.state = State.MOVING
         self.goal = msg
@@ -255,7 +259,8 @@ class TurtleRobot(Node):
     def move(self, goal):
         """Called when self.state == State.MOVING. Calculates heading to goal and moves to goal at
         max velocity. Switches to State.WAITING if at brick position waiting for brick to fall.
-        Parameter: goal, type geometry_msg/msgs/Point
+        Keyword arguments:
+        goal -- type geometry_msg/msgs/Point
         """
         self.goal_theta = math.atan2(
             (goal.y - self.current_pos.y),
@@ -280,7 +285,8 @@ class TurtleRobot(Node):
     def tilt_callback(self, msg):
         """Subscribed to "tilt". Updates angle with msg.angle to determine angle to tilt for
         robot's platform.
-        Parameter: msg, type turtle_brick_interfaces/msg/Tilt
+        Keyword arguments:
+        msg -- type turtle_brick_interfaces/msg/Tilt
         """
         self.tilt_angle = msg.angle
 

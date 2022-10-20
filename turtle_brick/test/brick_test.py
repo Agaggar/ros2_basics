@@ -43,7 +43,7 @@ class TestCmdVelPub(unittest.TestCase):
 
     def test_cmd_vel_pub_rate(self, launch_service, cmd_vel_action, proc_output):
         """This function should be checking rate of publishing"""
-        # proc_output.assertWaitFor("Publishing turtle1/cmd_vel at: 
+        # proc_output.assertWaitFor("Publishing turtle1/cmd_vel at:
         #   ", process=cmd_vel_action, timeout=3.0)
         # rclpy.spin_once(self.node)
         # wait_for_topics = WaitForTopics([('turtle1/cmd_vel', Twist)])

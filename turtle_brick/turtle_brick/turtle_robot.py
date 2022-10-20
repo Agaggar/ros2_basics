@@ -29,26 +29,24 @@ PARAMETERS:
   + name: max_velocity, type: float - robot's maximum linear velocity, as defined in
           config/turtle.yaml
 """
-
-import rclpy
 import math
+from enum import Enum, auto
+import rclpy
 import rclpy.time
 from rclpy.node import Node
 from rcl_interfaces.msg import ParameterDescriptor
-from enum import Enum, auto
 from turtlesim.msg import Pose
 from geometry_msgs.msg import Twist, Vector3, TransformStamped
 from geometry_msgs.msg import Point, PoseWithCovariance, TwistWithCovariance
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Header
-from .quaternion import angle_axis_to_quaternion
 from turtle_brick_interfaces.msg import Tilt
-
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 from sensor_msgs.msg import JointState
+from .quaternion import angle_axis_to_quaternion
 
 
 class State(Enum):
@@ -157,9 +155,9 @@ class TurtleRobot(Node):
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
-        self.js = JointState()
-        self.js.name = ['wheel_stem', 'stem_base', 'platform_x', 'base_platform_fixed']
-        self.js.position = [0.0, 0.0, 0.0, 0.0]
+        self.joint_state = JointState()
+        self.joint_state.name = ['wheel_stem', 'stem_base', 'platform_x', 'base_platform_fixed']
+        self.joint_state.position = [0.0, 0.0, 0.0, 0.0]
         self.tmr = self.create_timer(1 / 100.0, self.timer_callback)
         self.time = 0.0
         self.odom_base = TransformStamped()
@@ -198,19 +196,19 @@ class TurtleRobot(Node):
 
         self.vel_publisher.publish(self.current_twist)
         self.odom_pub.publish(self.twist_to_odom(self.current_twist))
-        self.js.header.stamp = self.get_clock().now().to_msg()
-        self.joint_state_pub.publish(self.js)
+        self.joint_state.header.stamp = self.get_clock().now().to_msg()
+        self.joint_state_pub.publish(self.joint_state)
 
         if self.state == State.STOPPED:
             self.time = 0
-            self.js.position = [0.0, 0.0, 0.0, 0.0]
+            self.joint_state.position = [0.0, 0.0, 0.0, 0.0]
         if self.state == State.MOVING:
             self.time += 1 / 100.0
-            self.js.position[0] = self.max_velocity / self.wheel_radius * self.time
-            self.js.position[1] = self.goal_theta
+            self.joint_state.position[0] = self.max_velocity / self.wheel_radius * self.time
+            self.joint_state.position[1] = self.goal_theta
             self.move(self.goal)
         if self.state == State.WAITING:
-            self.js.position = [0.0, 0.0, 0.0, 0.0]
+            self.joint_state.position = [0.0, 0.0, 0.0, 0.0]
             self.time = 0
             try:
                 self.platform_brick = self.tf_buffer.lookup_transform(
@@ -223,16 +221,17 @@ class TurtleRobot(Node):
                     self.state = State.CAUGHT
         if self.state == State.CAUGHT:
             self.back_to_center()
-            self.js.position[1] = self.goal_theta
-            self.js.position[0] = self.max_velocity / self.wheel_radius * self.time
+            self.joint_state.position[1] = self.goal_theta
+            self.joint_state.position[0] = self.max_velocity / self.wheel_radius * self.time
         if self.state == State.TILT:
             self.time += 1 / 100.0
-            self.js.position = [0.0, 0.0, self.tilt_angle, 0.0]
+            self.joint_state.position = [0.0, 0.0, self.tilt_angle, 0.0]
             self.current_twist = Twist(
                 linear=Vector3(
                     x=0.0, y=0.0, z=0.0), angular=Vector3(
                     x=0.0, y=0.0, z=0.0))
-            t_req = math.sqrt(5 * self.wheel_radius * 2.0 / self.accel_g / math.cos(self.tilt_angle))
+            t_req = math.sqrt(5 * self.wheel_radius * 2.0 / self.accel_g /
+                              math.cos(self.tilt_angle))
             if self.time >= t_req:
                 self.state = State.STOPPED
 
@@ -241,7 +240,7 @@ class TurtleRobot(Node):
         Keyword arguments:
         msg -- type turtlesim/msg/Pose
         """
-        if (self.initial_spawn is False):
+        if self.initial_spawn is False:
             self.spawn_pos = msg
             self.initial_spawn = True
         self.current_pos = msg
@@ -254,7 +253,6 @@ class TurtleRobot(Node):
         if msg is not None and self.state == State.STOPPED:
             self.state = State.MOVING
         self.goal = msg
-        return
 
     def move(self, goal):
         """Called when self.state == State.MOVING. Calculates heading to goal and moves to goal at

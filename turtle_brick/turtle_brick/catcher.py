@@ -27,12 +27,12 @@ PARAMETERS:
           config/turtle.yaml
 """
 
-import rclpy
 import math
+from enum import Enum, auto
+import rclpy
 from rclpy.node import Node
 import rclpy.time
 from rcl_interfaces.msg import ParameterDescriptor
-from enum import Enum, auto
 from visualization_msgs.msg import Marker
 from turtlesim.msg import Pose
 from geometry_msgs.msg import Point
@@ -55,7 +55,7 @@ class State(Enum):
 
 class Catcher(Node):
     """Determines whether a falling brick is catchable or not.
-    If catchable, publish the goal to "goal_message"
+    If catchable, publish goal to goal_message
     """
 
     def __init__(self):
@@ -156,7 +156,6 @@ class Catcher(Node):
                 self.tilt_brick()
             if self.state == State.BRICK_FALLING:
                 self.check_goal()
-        # print(self.state)
 
     def is_falling(self):
         """Called only if the brick has been published. If yes, check if the brick is falling.
@@ -208,7 +207,6 @@ class Catcher(Node):
             self.state = State.CAUGHT
             self.prev_brick_z1 = None
             self.prev_brick_z2 = None
-        return
 
     def uncatchable_pub(self):
         """Called within check_goal if state is UNCATCHABLE and the brick is in a "placed"
@@ -263,7 +261,6 @@ class Catcher(Node):
         msg -- type turtlesim/msg/Pose
         """
         self.current_pos = msg
-        return
 
     def place_callback(self, request, response):
         """Called by self.place_brick. Reads the service input to change the class variable
@@ -282,7 +279,7 @@ class Catcher(Node):
         return response
 
 
-def catch_dist(height, distance, g, max_vel):
+def catch_dist(height, distance, accel_grav, max_vel):
     """Called by check goal, returns True or False depending on kinematics.
     Keyword arguments:
     height (float) -- height from which brick falls
@@ -292,13 +289,13 @@ def catch_dist(height, distance, g, max_vel):
     Returns:
     boolean True or False
     """
-    if height <= 0 or distance <= 0 or g <= 0 or max_vel <= 0:
+    if height <= 0 or distance <= 0 or accel_grav <= 0 or max_vel <= 0:
         return False
     if height >= 0:
-        t = math.sqrt(2 * height / g)
+        time = math.sqrt(2 * height / accel_grav)
     else:
-        t = 0.0
-    return distance / max_vel <= t
+        time = 0.0
+    return distance / max_vel <= time
 
 
 def main(args=None):

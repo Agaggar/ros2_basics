@@ -79,10 +79,10 @@ class TurtleRobot(Node):
         self.static_broadcaster = StaticTransformBroadcaster(self)
         self.broadcaster = TransformBroadcaster(self)
         self.pos_or_subscriber = self.create_subscription(
-            Pose, "turtle1/pose", self.pos_or_callback, 10)
+            Pose, "pose", self.pos_or_callback, 10)
         self.tilt_sub = self.create_subscription(Tilt, "tilt", self.tilt_callback, 5)
         self.vel_publisher = self.create_publisher(
-            Twist, "turtle1/cmd_vel", 10)
+            Twist, "cmd_vel", 10)
         self.odom_pub = self.create_publisher(Odometry, "odom", 10)
         self.goal_sub = self.create_subscription(
             Point, "goal_message", self.goal_move_callback, 1)

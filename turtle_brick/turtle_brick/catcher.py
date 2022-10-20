@@ -142,7 +142,7 @@ class Catcher(Node):
         self.brick_place = self.create_service(
             Place, "brick_place", self.place_callback)
         self.pos_or_subscriber = self.create_subscription(
-            Pose, "turtle1/pose", self.pos_or_callback, 10)
+            Pose, "pose", self.pos_or_callback, 10)
         self.reachable_pub = self.create_publisher(Marker, "text_marker", 10)
         self.tilt_pub = self.create_publisher(Tilt, "tilt", 5)
         self.goal_pub = self.create_publisher(Point, "goal_message", 1)

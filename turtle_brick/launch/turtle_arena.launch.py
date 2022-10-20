@@ -25,6 +25,7 @@ def generate_launch_description():
             executable='catcher',
             name='catcher',
             output='screen',
-            parameters=[robot_configs]
+            parameters=[robot_configs],
+            remappings=[("pose", "turtle1/pose")]
         )
     ])

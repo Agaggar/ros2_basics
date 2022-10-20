@@ -30,6 +30,7 @@ def generate_launch_description():
             executable='turtle_robot',
             name='turtle_robot',
             output='screen',
-            parameters=[robot_configs]
+            parameters=[robot_configs],
+            remappings=[("cmd_vel", "turtle1/cmd_vel"), ("pose", "turtle1/pose")]
         )
     ])

@@ -30,7 +30,8 @@ def generate_launch_description():
         executable='arena',
         output='screen',
         emulate_tty=True,
-        parameters=[robot_configs]
+        parameters=[robot_configs],
+        remappings=[("pose", "turtle1/pose")]
     )
 
     robot_state_publisher_node = Node(

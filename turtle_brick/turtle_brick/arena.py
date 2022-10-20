@@ -76,7 +76,7 @@ class Arena(Node):
         self.tilt_sub = self.create_subscription(
             Tilt, "tilt", self.tilt_callback, 5)
         self.pos_or_subscriber = self.create_subscription(
-            Pose, "turtle1/pose", self.pos_or_callback, 10)
+            Pose, "pose", self.pos_or_callback, 10)
 
         self.state = State.RUNNING
         self.broadcaster = TransformBroadcaster(self)

@@ -1,3 +1,39 @@
+"""This node is in charge of moving the robot to and from the brick's x-y position.
+
+PUBLISHERS:
+  + publishes to: "turtle1/cmd_vel", type: Marker - displays text "Unreachable" if brick can't be
+    caught.
+  + publishes to: "tilt", type: turtle_brick_interfaces/msg/Tilt - publishes the tilt angle for
+    the platform.
+  + publishes to: "goal_message", type: geometry_msg/msg/Point - publishes the goal of where the
+    brick will fall IF the brick is catchable.
+
+self.pos_or_subscriber = self.create_subscription(
+            Pose, "turtle1/pose", self.pos_or_callback, 10)
+        self.vel_publisher = self.create_publisher(
+            Twist, "turtle1/cmd_vel", 10)
+        self.odom_pub = self.create_publisher(Odometry, "odom", 10)
+        self.goal_sub = self.create_subscription(
+            Point, "goal_message", self.goal_move_callback, 1)
+        self.joint_state_pub = self.create_publisher(
+            JointState, "joint_states", 10)
+
+SUBSCRIBERS:
+  + subscribes to: "turtle1/pose", type: turtlesim/msg/Pose - allows node to know where
+    the turtle is at any given time, and therefore, knows where the robot is.
+
+SERVICES:
+  + topic name: "brick_place" type: turtle_brick_interfaces/srv/Place - visually does nothing, but
+    needed by the node to know where the brick is initially placed and determine whether it is
+    falling or not.
+
+PARAMETERS:
+  + name: gravity, type: float - acceleration due to gravity, as defined in config/turtle.yaml
+  + name: wheel_radius, type: float - radius of wheel, as defined in config/turtle.yaml
+  + name: platform_height, type: float - robot's platform height, as defined in config/turtle.yaml
+          note that the platform_height must be >= 7*wheel_radius for robot geometry to be sensible
+"""
+
 import rclpy
 import math
 import rclpy.time
@@ -38,8 +74,6 @@ class TurtleRobot(Node):
 
     def __init__(self):
         super().__init__('turtle_node')
-        # Static broadcasters publish on /tf_static. We will only need to
-        # publish this once
         self.static_broadcaster = StaticTransformBroadcaster(self)
         self.broadcaster = TransformBroadcaster(self)
         self.pos_or_subscriber = self.create_subscription(
@@ -49,8 +83,6 @@ class TurtleRobot(Node):
         self.odom_pub = self.create_publisher(Odometry, "odom", 10)
         self.goal_sub = self.create_subscription(
             Point, "goal_message", self.goal_move_callback, 1)
-        # self.joint_state_sub = self.create_subscription(
-        #     JointState, "joint_states", self.js_callback, 10)
         self.joint_state_pub = self.create_publisher(
             JointState, "joint_states", 10)
         self.current_pos = Pose(
@@ -78,7 +110,7 @@ class TurtleRobot(Node):
             description="Accel due to gravity, 9.8 by default."))
         self.declare_parameter("wheel_radius", 0.5, ParameterDescriptor(
             description="Wheel radius"))
-        self.declare_parameter("platform_height", 0.6, ParameterDescriptor(
+        self.declare_parameter("platform_height", 6.0, ParameterDescriptor(
             description="height of platform. MUST BE >=3.5*WHEEL_RADIUS"))
         self.declare_parameter("max_velocity", 0.22, ParameterDescriptor(
             description="max linear velocity"))

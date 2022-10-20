@@ -33,7 +33,6 @@ class State(Enum):
     PLACE_BRICK = auto()
     DROP_BRICK = auto()
     BRICK_PLATFORM = auto()
-    BACK_TO_HOME = auto()
     TILTING_OFF = auto()
     TILT_ORIGINAL = auto()
 
@@ -72,7 +71,7 @@ class Arena(Node):
             description="Accel due to gravity, 9.8 by default."))
         self.declare_parameter("wheel_radius", 0.5, ParameterDescriptor(
             description="Wheel radius"))
-        self.declare_parameter("platform_height", 0.6, ParameterDescriptor(
+        self.declare_parameter("platform_height", 6.0, ParameterDescriptor(
             description="height of platform. MUST BE >=3.5*WHEEL_RADIUS"))
         self.declare_parameter("max_velocity", 0.22, ParameterDescriptor(
             description="max linear velocity"))
@@ -212,16 +211,16 @@ class Arena(Node):
                 print("not published yet")
                 return
             if self.odom_brick:
+                print(abs(self.odom_brick.transform.translation.x), abs(self.odom_brick.transform.translation.y))
                 if (abs(self.odom_brick.transform.translation.x) <= self.max_velocity / 10.0) and (
                         abs(self.odom_brick.transform.translation.y) <= self.max_velocity / 10.0):
-                    self.state = State.BACK_TO_HOME
-        if self.state == State.BACK_TO_HOME:
-            self.state = State.TILTING_OFF
+                    self.state = State.TILTING_OFF
         if self.state == State.TILTING_OFF:
             self.tilt_brick()
         if self.state == State.TILT_ORIGINAL:
             self.tilt_brick()
         self.count += 1
+        # print(self.state)
 
     def place_callback(self, request, response):
         self.state = State.PLACE_BRICK

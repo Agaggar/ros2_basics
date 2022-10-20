@@ -22,7 +22,7 @@ PARAMETERS:
   + name: gravity, type: float - acceleration due to gravity, as defined in config/turtle.yaml
   + name: wheel_radius, type: float - radius of wheel, as defined in config/turtle.yaml
   + name: platform_height, type: float - robot's platform height, as defined in config/turtle.yaml
-        note that the platform_height must be >= 7*wheel_radius for robot geometry to be sensible
+          note that the platform_height must be >= 7*wheel_radius for robot geometry to be sensible
 """
 
 import rclpy
@@ -68,7 +68,7 @@ class Catcher(Node):
         self.declare_parameter(
             "wheel_radius", 0.5, ParameterDescriptor(
                 description="Wheel radius"))
-        self.declare_parameter("platform_height", 0.6, ParameterDescriptor(
+        self.declare_parameter("platform_height", 6.0, ParameterDescriptor(
             description="height of platform. MUST BE >=3.5*WHEEL_RADIUS"))
         self.declare_parameter(
             "max_velocity", 0.22, ParameterDescriptor(
@@ -154,6 +154,7 @@ class Catcher(Node):
                 self.tilt_brick()
             if self.state == State.BRICK_FALLING:
                 self.check_goal()
+        # print(self.state)
 
     def is_falling(self):
         """Called only if the brick has been published. If yes, check if the brick is falling.
@@ -191,6 +192,8 @@ class Catcher(Node):
         self.distance_goal = math.sqrt(
             (goal.y - self.current_pos.y)**2 + (goal.x - self.current_pos.x)**2)
         catchable = catch_dist(height_goal, self.distance_goal, self.g, self.max_velocity)
+        if goal.x >= 11 or goal.y >= 11:
+            catchable = False
         if catchable is True and self.state == State.BRICK_FALLING:
             self.goal = Point(x=goal.x, y=goal.y, z=goal.z)
             if self.goal_initial is None:
@@ -225,6 +228,7 @@ class Catcher(Node):
             self.text_reachable.color.b = 200.0 / 255.0
             self.text_reachable.color.a = 1.0
             if self.text_count == 0:
+                print('hello')
                 self.reachable_pub.publish(self.text_reachable)
                 self.text_count += 1
             self.state = State.CHILLING
@@ -253,7 +257,7 @@ class Catcher(Node):
 
     def pos_or_callback(self, msg):
         """Called by self.pos_or_subscriber.
-        Subscribes to pose, and updates current point (x,y) with pose (x,y)
+        Subscribes to "/turtle1/pose", and updates current point (x,y) with pose (x,y)
         """
         self.current_pos = msg
         return
@@ -261,6 +265,9 @@ class Catcher(Node):
     def place_callback(self, request, response):
         """Called by self.place_brick. Reads the service input to change the class variable
         brick_place_initial to the value determined by the service.
+        Service for "brick_place".
+        Request of type Place
+        Response of type std_srvs.srv.Empty
         """
         self.brick_place_initial = Point(
             x=request.brick_x,
@@ -291,7 +298,7 @@ def catch_dist(height, distance, g, max_vel):
 
 
 def main(args=None):
-    """Create a catcher node and spin once. """
+    """Create a catcher node and spin once."""
     rclpy.init(args=args)
     node = Catcher()
     rclpy.spin(node)

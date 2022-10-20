@@ -1,7 +1,8 @@
-"""This node is in charge of recognizing when the brick is falling, and whether the robot can move
-fast enough in time to catch the brick or not.
+"""
+Determines whether the robot can catch a falling brick.
 
-PUBLISHERS:
+Publishers
+----------
   + publishes to: "text_marker", type: Marker - displays text "Unreachable" if brick can't be
     caught.
   + publishes to: "tilt", type: turtle_brick_interfaces/msg/Tilt - publishes the tilt angle for
@@ -9,22 +10,26 @@ PUBLISHERS:
   + publishes to: "goal_message", type: geometry_msgs/msg/Point - publishes the goal of where the
     brick will fall IF the brick is catchable.
 
-SUBSCRIBERS:
+Subscribers
+-----------
   + subscribes to: "turtle1/pose", type: turtlesim/msg/Pose - allows catcher node to know where
     the turtle is at any given time, and therefore, knows where the robot is.
 
-SERVICES:
+Services
+--------
   + topic name: "brick_place" type: turtle_brick_interfaces/srv/Place - visually does nothing, but
     needed by the node to know where the brick is initially placed and determine whether it is
     falling or not.
 
-PARAMETERS:
+Parameters
+----------
   + name: gravity, type: float - acceleration due to gravity, as defined in config/turtle.yaml
   + name: wheel_radius, type: float - radius of wheel, as defined in config/turtle.yaml
   + name: platform_height, type: float - robot's platform height, as defined in config/turtle.yaml
           note that the platform_height must be >= 7*wheel_radius for robot geometry to be sensible
   + name: max_velocity, type: float - robot's maximum linear velocity, as defined in
           config/turtle.yaml
+
 """
 
 import math
@@ -44,9 +49,12 @@ from tf2_ros.transform_listener import TransformListener
 
 
 class State(Enum):
-    """Different possible states of the system.
+    """
+    Different possible states of the system.
+
     Determines what the main timer function should be doing on each iteration.
     """
+
     CHILLING = auto()
     BRICK_FALLING = auto()
     CAUGHT = auto()
@@ -54,7 +62,9 @@ class State(Enum):
 
 
 class Catcher(Node):
-    """Determines whether a falling brick is catchable or not.
+    """
+    Determine whether a falling brick is catchable or not.
+
     If catchable, publish goal to goal_message
     """
 
@@ -141,7 +151,7 @@ class Catcher(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
     def timer_callback(self):
-        """Checks different states to determine which function to call."""
+        """Check different states to determine which function to call."""
         try:
             self.world_brick = self.tf_buffer.lookup_transform(
                 "world", "brick", rclpy.time.Time())
@@ -158,7 +168,10 @@ class Catcher(Node):
                 self.check_goal()
 
     def is_falling(self):
-        """Called only if the brick has been published. If yes, check if the brick is falling.
+        """
+        Determine if the brick is falling.
+
+        Call if the brick has been published. If yes, check if the brick is falling.
         Brick is falling if it's z-height off the ground changes for two CONSECUTIVE frames.
         If brick is falling, change the state to BRICK_FALLING. Otherwise, reset the previous two
         frames.
@@ -182,7 +195,10 @@ class Catcher(Node):
                 self.prev_brick_z2 = None
 
     def check_goal(self):
-        """Called if state is BRICK_FALLING. Checks to make sure that both the height and
+        """
+        Check to see if the brick position is catchable.
+
+        Call if state is BRICK_FALLING. Checks to make sure that both the height and
         distance of the brick to the robot are within the kinematic requirements to catch the
         brick in time, given the max velocity. If catchable, publish the goal. If not, switch
         state to UNCATCHABLE. If the distance to goal decreases to "0" tolerance, change state
@@ -209,10 +225,13 @@ class Catcher(Node):
             self.prev_brick_z2 = None
 
     def uncatchable_pub(self):
-        """Called within check_goal if state is UNCATCHABLE and the brick is in a "placed"
-        position. Create the uncatchable text marker, and switch state to original state.
+        """
+        Publish uncatchable text if not catchable.
+
+        Create the uncatchable text marker, and switch state to original state.
         Note that this means the robot should never have moved in the first place, and should
-        be in its original position.
+        be in its original position. Called within check_goal if state is UNCATCHABLE and the
+        brick is in a "placed" position.
         """
         if self.prev_brick_z2 is not None:
             self.text_reachable.header.frame_id = "platform_tilt"
@@ -234,10 +253,13 @@ class Catcher(Node):
             self.state = State.CHILLING
 
     def tilt_brick(self):
-        """Called if the state is CAUGHT (note that the robot is back to its starting position
-        when this is called). Publishes the tilt angle (which can be changed by changing the
-        class variable self.theta_tilt_default). Once the brick resets to it's original
-        position, the state resets to the original state, CHILLING.
+        """
+        Publish tilt angle to tilt topic.
+
+        Publish the tilt angle (which can be changed by changing the class variable
+        self.theta_tilt_default). Once the brick resets to it's original position, the state
+        resets to the original state, CHILLING. Called if the state is CAUGHT (note that the robot
+        is back to its starting position when this is called).
         """
         try:
             self.odom_brick = self.tf_buffer.lookup_transform(
@@ -256,19 +278,27 @@ class Catcher(Node):
                 self.state = State.CHILLING
 
     def pos_or_callback(self, msg):
-        """Subscribes to "/turtle1/pose", and updates current pose with pose.
-        Keyword arguments:
+        """
+        Subscribe to "/turtle1/pose", and updates current pose with pose.
+
+        Keyword Arguments:
+        -----------------
         msg -- type turtlesim/msg/Pose
+
         """
         self.current_pos = msg
 
     def place_callback(self, request, response):
-        """Called by self.place_brick. Reads the service input to change the class variable
-        brick_place_initial to the value determined by the service.
-        Service for "brick_place".
-        Keyword arguments:
-        request -- type turtle_brick_interfaces/srv/Place
-        response -- type std_srvs.srv.Empty
+        """
+        Service for "brick_place" - changes class variable.
+
+        Change self.brick_place_initial to value determined by service
+
+        Keyword Arguments:
+        -----------------
+            request -- type turtle_brick_interfaces/srv/Place
+            response -- type std_srvs.srv.Empty
+
         """
         self.brick_place_initial = Point(
             x=request.brick_x,
@@ -280,14 +310,20 @@ class Catcher(Node):
 
 
 def catch_dist(height, distance, accel_grav, max_vel):
-    """Called by check goal, returns True or False depending on kinematics.
-    Keyword arguments:
-    height (float) -- height from which brick falls
-    distance (float) -- x-y distance to brick
-    g (float) -- acceleration due to gravity
-    max_vel (float) -- max_velocity of the robot
-    Returns:
-    boolean True or False
+    """
+    Determine whether brick can be caught, using kinematics.
+
+    Keyword Arguments:
+    -----------------
+        height (float) -- height from which brick falls
+        distance (float) -- x-y distance to brick
+        g (float) -- acceleration due to gravity
+        max_vel (float) -- max_velocity of the robot
+
+    Returns
+    -------
+        boolean True or False
+
     """
     if height <= 0 or distance <= 0 or accel_grav <= 0 or max_vel <= 0:
         return False

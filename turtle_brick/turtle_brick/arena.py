@@ -1,27 +1,33 @@
 """
-This file controls the visuals of the arena walls and the brick.
-PUBLISHERS:
+Controls the visuals of the arena walls and the brick.
+
+Publishers
+----------
   + publishes to: "wall_marker", type: Marker - publishes a cube list, representing the walls.
   + publishes to: "brick_marker", type: Marker - publishes the brick visual.
 
-SUBSCRIBERS:
+Subscribers
+-----------
   + subscribes to: "turtle1/pose", type: turtlesim/msg/Pose - allows node to know where
     the turtle is at any given time, and therefore, knows where the robot is.
   + subscribes to: "tilt", type: turtle_brick_interfaces/msg/Tilt - allows node to know how much
     to tilt the platform.
 
-SERVICES:
+Services
+--------
   + name: "brick_place", type: turtle_brick_interfaces/srv/Place - places the brick to the
     position defined by the service.
   + name: "brick_drop", type: std_srvs/srv/Empty - drops the brick from the placed position.
 
-PARAMETERS:
+Parameters
+----------
   + name: gravity, type: float - acceleration due to gravity, as defined in config/turtle.yaml
   + name: wheel_radius, type: float - radius of wheel, as defined in config/turtle.yaml
   + name: platform_height, type: float - robot's platform height, as defined in config/turtle.yaml
           note that the platform_height must be >= 7*wheel_radius for robot geometry to be sensible
   + name: max_velocity, type: float - robot's maximum linear velocity, as defined in
           config/turtle.yaml
+
 """
 
 from enum import Enum, auto
@@ -43,9 +49,8 @@ from tf2_ros.transform_listener import TransformListener
 
 
 class State(Enum):
-    """ Current state of the system.
-        Determines what timer and subfunctions should do in each state.
-    """
+    """Current state of the system. Determines what timer do in each state."""
+
     RUNNING = auto()
     PLACE_BRICK = auto()
     DROP_BRICK = auto()
@@ -55,7 +60,7 @@ class State(Enum):
 
 
 class Arena(Node):
-    """Publishes visuals of the brick and arena."""
+    """Publish visuals of the brick and arena."""
 
     def __init__(self):
         super().__init__('arena')
@@ -181,7 +186,7 @@ class Arena(Node):
         self.world_brick = TransformStamped()
 
     def timer_callback(self):
-        """Checks different states to determine which function to call."""
+        """Check different states to determine which function to call."""
         if (self.count % 50) == 0:
             self.marker_pub.publish(self.marker_walls_border)
         if self.state != State.RUNNING:
@@ -239,11 +244,14 @@ class Arena(Node):
         self.count += 1
 
     def place_callback(self, request, response):
-        """Reads the service input to publish the visual for the brick.
-        Service for "brick_place".
-        Keyword arguments:
-        request -- type turtle_brick_interfaces/srv/Place
-        response -- type std_srvs.srv.Empty
+        """
+        Service for "brick_place" - publish the visual for the brick.
+
+        Keyword Arguments:
+        -----------------
+            request -- type turtle_brick_interfaces/srv/Place
+            response -- type std_srvs.srv.Empty
+
         """
         self.state = State.PLACE_BRICK
         self.marker_brick.header.stamp = self.get_clock().now().to_msg()
@@ -267,10 +275,14 @@ class Arena(Node):
         return response
 
     def drop_callback(self, request, response):
-        """Drops brick.
-        Keyword arguments:
-        request -- type std_srvs.srv.Empty
-        response -- type std_srvs.srv.Empty
+        """
+        Drop brick.
+
+        Keyword Arguments:
+        -----------------
+            request -- type std_srvs.srv.Empty
+            response -- type std_srvs.srv.Empty
+
         """
         if self.state == State.PLACE_BRICK:
             self.state = State.DROP_BRICK
@@ -279,22 +291,32 @@ class Arena(Node):
         return response
 
     def pos_or_callback(self, msg):
-        """Subscribes to "/turtle1/pose", and updates current pose with pose.
-        Keyword arguments:
+        """
+        Subscribe to "/turtle1/pose", and updates current pose with pose.
+
+        Keyword Arguments:
+        -----------------
         msg -- type turtlesim/msg/Pose
+
         """
         self.current_pos = msg
 
     def tilt_callback(self, msg):
-        """Subscribed to "tilt". Updates angle with msg.angle to determine angle to tilt for
+        """
+        Subscribe to "tilt".
+
+        Updates angle with msg.angle to determine angle to tilt for
         robot's platform.
-        Keyword arguments:
+
+        Keyword Arguments:
+        -----------------
         msg -- type turtle_brick_interfaces/msg/Tilt
+
         """
         self.tilt_def = msg.angle
 
     def tilt_brick(self):
-        """Determines visuals of the brick while tilting."""
+        """Determine visuals of the brick while tilting."""
         t_req = math.sqrt(
             5 * self.wheel_radius *
             2.0 /

@@ -1,6 +1,8 @@
-"""This node is in charge of moving the robot to and from the brick's x-y position.
+"""
+Moves the robot to and from the brick's x-y position.
 
-PUBLISHERS:
+Publishers
+----------
   + publishes to: "turtle1/cmd_vel", type: geometry_msgs/msg/Twist - publishes a twist of the
     robot's current velocity.
   + publishes to: "odom", type: nav_msgs/msg/Odometry - publishes the odometry heading of the
@@ -12,23 +14,28 @@ PUBLISHERS:
   + publishes to: "tf", type: geomtery_msgs/msg/TransformStamped - uses a
     TransformBroadcaster to publish frames.
 
-SUBSCRIBERS:
+Subscribers
+-----------
   + subscribes to: "turtle1/pose", type: turtlesim/msg/Pose - allows node to know where
     the turtle is at any given time, and therefore, knows where the robot is.
   + subscribes to: "tilt", type: turtle_brick_interfaces/msg/Tilt - allows node to know how much
     to tilt the platform.
 
-SERVICES:
+Services
+--------
   + none.
 
-PARAMETERS:
+Parameters
+----------
   + name: gravity, type: float - acceleration due to gravity, as defined in config/turtle.yaml
   + name: wheel_radius, type: float - radius of wheel, as defined in config/turtle.yaml
   + name: platform_height, type: float - robot's platform height, as defined in config/turtle.yaml
           note that the platform_height must be >= 7*wheel_radius for robot geometry to be sensible
   + name: max_velocity, type: float - robot's maximum linear velocity, as defined in
           config/turtle.yaml
+
 """
+
 import math
 from enum import Enum, auto
 import rclpy
@@ -50,9 +57,12 @@ from .quaternion import angle_axis_to_quaternion
 
 
 class State(Enum):
-    """Different possible states of the system.
+    """
+    Different possible states of the system.
+
     Determines what the main timer function should be doing on each iteration.
     """
+
     MOVING = auto()
     STOPPED = auto()
     CAUGHT = auto()
@@ -61,7 +71,7 @@ class State(Enum):
 
 
 class TurtleRobot(Node):
-    """Creates robot by broadcasting frames, and controls robot's motions."""
+    """Create robot by broadcasting frames, and controls robot's motions."""
 
     def __init__(self):
         """Initialize class variables."""
@@ -165,9 +175,17 @@ class TurtleRobot(Node):
         self.odom_base.child_frame_id = "base_link"
 
     def twist_to_odom(self, conv_twist):
-        """Converts a geometry_msgs/msg/Twist to a nav_msgs/msg/Odometry type with no covariance.
-        Parameters -- conv_twist, type geometry_msgs/msg/Twist
-        Returns -- type nav_msgs/msg/Odometry
+        """
+        Convert a geometry_msgs/msg/Twist to a nav_msgs/msg/Odometry type with no covariance.
+
+        Keyword Arguments:
+        -----------------
+        conv_twist, type geometry_msgs/msg/Twist
+
+        Returns
+        -------
+        type nav_msgs/msg/Odometry
+
         """
         head = Header()
         head.stamp = self.get_clock().now().to_msg()
@@ -188,7 +206,7 @@ class TurtleRobot(Node):
             twist=twis)
 
     def timer_callback(self):
-        """Checks different states to determine which function to call."""
+        """Check different states to determine which function to call."""
         self.odom_base.header.stamp = self.get_clock().now().to_msg()
         self.odom_base.transform.translation.x = self.current_pos.x - self.spawn_pos.x
         self.odom_base.transform.translation.y = self.current_pos.y - self.spawn_pos.y
@@ -236,9 +254,13 @@ class TurtleRobot(Node):
                 self.state = State.STOPPED
 
     def pos_or_callback(self, msg):
-        """Subscribes to "/turtle1/pose", and updates current pose with pose.
-        Keyword arguments:
+        """
+        Subscribe to "/turtle1/pose", and updates current pose with pose.
+
+        Keyword Arguments:
+        -----------------
         msg -- type turtlesim/msg/Pose
+
         """
         if self.initial_spawn is False:
             self.spawn_pos = msg
@@ -246,19 +268,29 @@ class TurtleRobot(Node):
         self.current_pos = msg
 
     def goal_move_callback(self, msg):
-        """Subscribes to "goal_message".
-        Keyword arguments:
+        """
+        Subscribe to "goal_message".
+
+        Keyword Arguments:
+        -----------------
         msg -- type geometry_msgs/msg/Point
+
         """
         if msg is not None and self.state == State.STOPPED:
             self.state = State.MOVING
         self.goal = msg
 
     def move(self, goal):
-        """Called when self.state == State.MOVING. Calculates heading to goal and moves to goal at
-        max velocity. Switches to State.WAITING if at brick position waiting for brick to fall.
-        Keyword arguments:
+        """
+        Publish to cmd_vel to control the robot.
+
+        Calculate heading to goal and moves to goal at max velocity. Called when self.state ==
+        State.MOVING. Switches to State.WAITING if at brick position waiting for brick to fall.
+
+        Keyword Arguments:
+        -----------------
         goal -- type geometry_msg/msgs/Point
+
         """
         self.goal_theta = math.atan2(
             (goal.y - self.current_pos.y),
@@ -281,15 +313,23 @@ class TurtleRobot(Node):
             self.state = State.MOVING
 
     def tilt_callback(self, msg):
-        """Subscribed to "tilt". Updates angle with msg.angle to determine angle to tilt for
-        robot's platform.
-        Keyword arguments:
+        """
+        Subscribe to "tilt".
+
+        Updates angle with msg.angle to determine angle to tilt for robot's platform.
+
+        Keyword Arguments:
+        -----------------
         msg -- type turtle_brick_interfaces/msg/Tilt
+
         """
         self.tilt_angle = msg.angle
 
     def back_to_center(self):
-        """Called when self.state == State.CAUGHT; controls robot to go back to the home
+        """
+        Control robot to go back to spawn position.
+
+        Call when self.state == State.CAUGHT; controls robot to go back to the home
         position. Very similar to move function, with subtle changes in switching states.
         """
         goal = Point(x=self.spawn_pos.x, y=self.spawn_pos.y, z=0.0)

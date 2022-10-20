@@ -1,18 +1,22 @@
-""" Convert from angle-axis to quaternion """
+"""Convert from angle-axis to quaternion."""
 
 from geometry_msgs.msg import Quaternion
 from math import sqrt, sin, cos
 
 
 def angle_axis_to_quaternion(theta, axis):
-    """ Convert from angle-axis of rotation to a quaternion
+    """
+    Convert from angle-axis of rotation to a quaternion.
 
-        Args:
-          theta:  rotation angle, in radians
-          axis: the rotational axis. This will be normalized
+    Args:
+    ----
+    theta:  rotation angle, in radians
+    axis: the rotational axis. This will be normalized
 
-        Returns:
-          A Quaternion corresponding to the rotation
+    Returns
+    -------
+      A Quaternion corresponding to the rotation
+
     """
     magnitude = sqrt(axis[0]**2 + axis[1]**2 + axis[2]**2)
     normalized = [v/magnitude for v in axis]

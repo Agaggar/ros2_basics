@@ -1,7 +1,8 @@
 # ME 495 Embedded Systems - homework 2
 Author: `Ayush Gaggar`
 
-This homework is designed to launch a robot in rviz2, place a brick at a specified location, and
+This homework assignment is from NU ME 495 by Matt Elwin, requiring custom service messages, nodes, topics, and launch files, along with urdf, xacro, and xml files in rviz2.
+Goal: launch a robot in rviz2, place a brick at a specified location, and
 drive the robot to catch the brick (after determining whether it's within range and speed limits).
 After catching the brick, drive it back to the spawn position and tilt it off.
 
